@@ -402,141 +402,56 @@ Tap spins. Tracks last 10/15/20: Junko quadrants, columns, dozens, red/black, hi
   var manualInput = $("manualInput");
   var explainBtn = $("explainBtn");
 
-    var STRATEGY_DETAILS = {
-    'DS Cash Power': 'DS Cash Power
-
-Setup
-- Observe first 15 spins.
-- For each dozen, select the hottest double-street (6-line) by hit-count in the last-15.
-
-Bets (base)
-- Corners: 6 Diamonds corner set, $5 per corner.
-- Double streets: 1 double-street per dozen, $10 each (3 total).
-
-Win/Loss definition (per your rule)
-- WIN only if ANY double-street hits.
-- Corner-only hits are treated as a LOSS for progression.
-
-Progression (global, step only after 2 losses)
-- Track “losses” as defined above.
-- After 2 consecutive losses:
-  - Corners: +$5 per corner (6D unit up)
-  - Double streets: +$10 to EACH of the 3 double streets
-- On a DS WIN:
-  - Corners: down 1 unit (min $5)
-  - Loss counter resets
-
-Reset
-- If PnL ≥ 85% of session high: reset bets to base and re-pick DS + corners (if using adaptive corners).',
-    '6 Diamonds (Corner Core)': '6 Diamonds (Corner Core)
-
-Bets
-- 6 fixed corners (your standard 6).
-
-Progression
-- Loss: increase ALL corners by +1 unit.
-- Win: decrease ALL corners by −1 unit (minimum 1 unit).
-
-Use when
-- Repeat-heavy tables (number repeats within ≤5, or street repeats within ≤3).',
-    'Holy Grail': "Holy Grail (2-dozen tracking / sit-out / reset)
-
-This tracker uses the Holy Grail rules you provided in prior sims:
-- Bet two dozens under your HG trigger logic
-- Sit-out / reset rules per your HG spec
-(If you want the exact current implementation text shown here, paste your final HG rules and I'll pin them verbatim.)",
-    'Junko Quadrants': 'Junko Quadrants
-
-Quadrants (American wheel mapping in your brief)
-- Green Neighbors: 00,0,1,2,9,10,13,14,27,28
-- High Orphans: 24,25,26,29,30,33,34,35,36
-- Low Orphans: 3,4,8,11,12,15,16,22,23
-- Middle: 5,6,7,17,18,19,20,21,31,32
-
-Selection
-- Based on last-15: choose hottest/driest depending on the mode you’re using.
-
-Progression
-- Uses your currently selected progression/reset rules (varies by version).',
-    'Fibonacci Spiral — Column-Led Follow-Winner': 'Fibonacci Spiral — Column-Led Follow-Winner
-
-Entry
-- Observe first 15 spins.
-- Identify dominant column (≥7 hits in last 15).
-
-Bets
-- 2 units on dominant column
-- 1 unit on second hottest column
-- Follow the winning column each spin.
-
-Progression
-- Modified Fibonacci ladder (per your spec), with caps/resets.',
-    'Black Chip / Black Anchor': 'Black Chip / Black Anchor
-
-Bets
-- Black anchor bet plus small structural corner coverage (per your spec).
-
-Use when
-- Black/column structure is visibly skewed.
-
-Reset
-- Reset when within your session-high threshold.',
-    'Hot Quadrant last-15 (Option A default)': 'Hot Quadrant last-15 (Option A)
-
-Trigger
-- Top Junko quadrant ≥6 hits in last 15.
-
-Bets
-- Hot 5 numbers in that quadrant (plus neighbors if repeats are present).
-
-Progression
-- +$1 after 3 consecutive losing bet-spins
-- Reset to $1 on any win.',
-    'Disappearing Streets': 'Disappearing Streets
-
-Entry
-- Flat / choppy tables (no repeat numbers or repeat streets active).
-
-Bets
-- Start with 6–8 non-overlapping streets.
-- Remove winning streets.
-- Controlled progression (Fibonacci or slow).
-- Reset when 5 streets remain and you win.',
-    'Production (A/B)': 'Production (A/B)
-
-Entry
-- Dozen or Junko quadrant concentration.
-
-Style
-- Heavy coverage with mandatory stops/resets.
-
-Note
-- This tracker labels Production when dozens/quadrants are concentrated; exact bet structure depends on which Production variant you choose.',
     
-    '50/50 Edge Rider': '50/50 Edge Rider (Red/Black, High/Low, Even/Odd)\n\nEntry (casino mode)\n- Triggered only when the last-20 shows BOTH:\n  • A run (streak) of ≥3 in the same side, AND\n  • A dominance of ≥12/20 for that side (greens excluded from the attribute).\n\nPlay\n- Bet 1 unit on the leading side (R/B or H/L or E/O).\n- If a loss occurs, you may either:\n  • Switch to the new leader if dominance flips, OR\n  • Sit out 1 spin and re-check.\n\nExit / Switch\n- Stop using 50/50 when:\n  • The run breaks, OR\n  • Dominance falls below 12/20, OR\n  • The tracker issues a trend-change alert.',
-'Follow-the-Leader 50/50': 'Follow-the-Leader 50/50
+  var STRATEGY_DETAILS = {
+    "Junko Quadrants (switch8→next hot, cashout +150/-200)": `Junko Quadrants (single quadrant, all numbers) with a switch rule.
 
-Entry
-- Color or High/Low run of ≥3.
+How it runs in the tracker:
+• Uses your selected window (Last 10 / 15 / 20) to identify the “hottest” quadrant.
+• Bets that quadrant as the active pick.
+• If progression reaches an 8-count level and the spin misses, switch to the next-hottest quadrant (based on the same rolling window).
+• Session cashout: +$150 or -$200 (modeled in sims).`,
 
-Bets
-- Stay with the streak with tight caps.
-- Exit quickly when streak breaks.'
+    "DS Cash Power (v2)": `DS Cash Power (v2)
+
+Core idea:
+• 6 corner bets (6 Diamonds logic) + 1 double-street per dozen (3 total double-streets).
+• Base bets: corners at $5 unit, double-streets at $10 unit (as modeled previously).
+• Progression: after 2 consecutive “loss spins”, increase BOTH corners and double-streets by +1 base unit.
+• A “win spin” is: (any corner hits) OR (any double-street hits) OR (both hit).
+• Reset rule: if pnl is within 85% of the session-high pnl, reset and re-pick corners + double-streets.`,
+
+    "Holy Grail (2-dozen tracking / sit-out / reset)": `Holy Grail
+
+High-level:
+• Tracks dozens over a rolling window.
+• Bets 2 dozens when conditions are favorable.
+• Sit-out logic can be applied after a loss streak (varies by version).
+• Reset is triggered when pnl recovers to a % of session high (your variants used 75% or 85%).`,
+
+    "6 Diamonds (6 corners, unit up/down)": `6 Diamonds
+
+High-level:
+• 6 corner bets (coverage 24 numbers).
+• Unit up/down logic: increase after losses (rule varies by version) and reduce/hold after wins.
+• Reset can use a session-high recovery rule (e.g., 75%/85%).`
   };
 
+
   function showExplain(play){
-    
-    // Normalize dynamic strategy names (e.g., "50/50 Edge Rider (Red/Black)")
+    // Try to map the displayed title back to our STRATEGY_DETAILS keys.
     var key = play;
-    if(key && key.indexOf("50/50 Edge Rider")===0) key = "50/50 Edge Rider";
-var t = STRATEGY_DETAILS[key] || play;
-    alert(t);
+    if(!STRATEGY_DETAILS[key]){
+      // Normalize common suffixes/prefixes
+      key = String(play).replace(/\s*\(.*?\)\s*$/,"").trim();
+    }
+    var txt = STRATEGY_DETAILS[play] || STRATEGY_DETAILS[key] || ("No detailed notes found for:\n\n" + play);
+    $("explainText").textContent = txt;
+    $("explainModal").style.display = "flex";
   }
-function showExplain(play){
-    var txt = STRATEGY_DETAILS[key];
-    if(!txt) return;
-    alert(txt);
-  }
+
+  // (deduped showExplain)
+
 
 
   function save(){
@@ -581,7 +496,7 @@ function showExplain(play){
       b.type="button";
       b.className="key";
       if (k==="00") b.className += " zero";
-      if (k===0) b.className += "green";
+      if (k===0) b.className += " green";
       b.textContent = String(k);
       b.addEventListener("click", function(){ addSpin(k); });
       kbd.appendChild(b);
@@ -738,8 +653,8 @@ function scoreStrategies(vals){
 
   // DS Cash Power favorability (last-15)
   var dsp = dsPickByCount(w15);
-  var dsSum = dsp.bestSum;
-  var dsHas3 = (dsp.best.d1 >= 3) || (dsp.best.d2 >= 3) || (dsp.best.d3 >= 3);
+  var dsSum = (dsp.d1.mx + dsp.d2.mx + dsp.d3.mx);
+  var dsHas3 = (dsp.d1.mx>=3)||(dsp.d2.mx>=3)||(dsp.d3.mx>=3);
   var dsFavorable = (dsSum >= 8) && dsHas3;
 
   // Holy Grail proxy favorability: top 2 dozens dominate last-15
@@ -773,7 +688,7 @@ function scoreStrategies(vals){
 
   // DS Cash Power
   if(dsFavorable){
-    add("DS Cash Power", 90, "DS bias: best-sum "+dsSum+" in last-15 (D1 "+dsp.best.d1+", D2 "+dsp.best.d2+", D3 "+dsp.best.d3+").", ["ds"]);
+    add("DS Cash Power", 90, "DS bias: best-sum "+dsSum+" in last-15 (D1 "+dsp.d1.mx+", D2 "+dsp.d2.mx+", D3 "+dsp.d3.mx+").", ["ds"]);
   }
 
   // Holy Grail
@@ -914,7 +829,7 @@ function suggest(vals){
   var out = scoreStrategies(vals);
   return {state:out.state, play:out.primary.name, why:out.primary.why};
 }
-spinsForExport(){
+  function spinsForExport(){
     if(exportScope==="all") return spins;
     if(exportScope==="session") return spins.filter(function(x){ return x.s===sessionId; });
     return spins.slice(0,20);
