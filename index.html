@@ -186,6 +186,14 @@ Tap spins. Tracks last 10/15/20: Junko quadrants, columns, dozens, red/black, hi
         <div class="hr"></div>
 
         <div style="font-weight:800;margin-bottom:8px">Top strategies right now</div>
+
+        <div class="row" style="gap:10px;align-items:center;margin:-2px 0 10px 0;">
+          <div class="pill" style="font-size:12px;">Win 28 risk mode</div>
+          <select id="win28RiskMode" class="btn" style="padding:8px 10px;">
+            <option value="aggressive">Aggressive (+100 / -545)</option>
+            <option value="defensive">Defensive (+100 / -260)</option>
+          </select>
+        </div>
         <div id="topPlays" class="topplays"></div>
 <div class="hr"></div>
 
@@ -370,6 +378,7 @@ Tap spins. Tracks last 10/15/20: Junko quadrants, columns, dozens, red/black, hi
 
   var ACTIVE_KEY = "roulette_active_strategy_v1";
   var activeStrategy = localStorage.getItem(ACTIVE_KEY) || "";
+  var activeStartLen = parseInt(localStorage.getItem('activeStartLen')||"0",10) || 0;
   var badCount = 0;
 
   function setActive(name){
@@ -387,6 +396,15 @@ Tap spins. Tracks last 10/15/20: Junko quadrants, columns, dozens, red/black, hi
       return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]) || ch;
     });
   }
+    // Win 28 handoff logic (first-10 spin probe)
+    function win28IsWin(n){
+      // n is numeric key (0..36 or 99 for "00")
+      if(n===99) return true;
+      if(n===0||n===1||n===3||n===7||n===9||n===12||n===13||n===15||n===22||n===24||n===27||n===28||n===30||n===34||n===36) return true;
+      if(n===2||n===5||n===8||n===11||n===14||n===17||n===20||n===23||n===26||n===29||n===32||n===35) return true;
+      return false;
+    }
+
 
 
 
@@ -402,59 +420,152 @@ Tap spins. Tracks last 10/15/20: Junko quadrants, columns, dozens, red/black, hi
   var manualInput = $("manualInput");
   var explainBtn = $("explainBtn");
 
+    var STRATEGY_DETAILS = {
+    'DS Cash Power': 'DS Cash Power
+
+Setup
+- Observe first 15 spins.
+- For each dozen, select the hottest double-street (6-line) by hit-count in the last-15.
+
+Bets (base)
+- Corners: 6 Diamonds corner set, $5 per corner.
+- Double streets: 1 double-street per dozen, $10 each (3 total).
+
+Win/Loss definition (per your rule)
+- WIN only if ANY double-street hits.
+- Corner-only hits are treated as a LOSS for progression.
+
+Progression (global, step only after 2 losses)
+- Track “losses” as defined above.
+- After 2 consecutive losses:
+  - Corners: +$5 per corner (6D unit up)
+  - Double streets: +$10 to EACH of the 3 double streets
+- On a DS WIN:
+  - Corners: down 1 unit (min $5)
+  - Loss counter resets
+
+Reset
+- If PnL ≥ 85% of session high: reset bets to base and re-pick DS + corners (if using adaptive corners).',
+    '6 Diamonds (Corner Core)': '6 Diamonds (Corner Core)
+
+Bets
+- 6 fixed corners (your standard 6).
+
+Progression
+- Loss: increase ALL corners by +1 unit.
+- Win: decrease ALL corners by −1 unit (minimum 1 unit).
+
+Use when
+- Repeat-heavy tables (number repeats within ≤5, or street repeats within ≤3).',
+    'Holy Grail': "Holy Grail (2-dozen tracking / sit-out / reset)
+
+This tracker uses the Holy Grail rules you provided in prior sims:
+- Bet two dozens under your HG trigger logic
+- Sit-out / reset rules per your HG spec
+(If you want the exact current implementation text shown here, paste your final HG rules and I'll pin them verbatim.)",
+    'Junko Quadrants': 'Junko Quadrants
+
+Quadrants (American wheel mapping in your brief)
+- Green Neighbors: 00,0,1,2,9,10,13,14,27,28
+- High Orphans: 24,25,26,29,30,33,34,35,36
+- Low Orphans: 3,4,8,11,12,15,16,22,23
+- Middle: 5,6,7,17,18,19,20,21,31,32
+
+Selection
+- Based on last-15: choose hottest/driest depending on the mode you’re using.
+
+Progression
+- Uses your currently selected progression/reset rules (varies by version).',
+    'Fibonacci Spiral — Column-Led Follow-Winner': 'Fibonacci Spiral — Column-Led Follow-Winner
+
+Entry
+- Observe first 15 spins.
+- Identify dominant column (≥7 hits in last 15).
+
+Bets
+- 2 units on dominant column
+- 1 unit on second hottest column
+- Follow the winning column each spin.
+
+Progression
+- Modified Fibonacci ladder (per your spec), with caps/resets.',
+    'Black Chip / Black Anchor': 'Black Chip / Black Anchor
+
+Bets
+- Black anchor bet plus small structural corner coverage (per your spec).
+
+Use when
+- Black/column structure is visibly skewed.
+
+Reset
+- Reset when within your session-high threshold.',
+    'Hot Quadrant last-15 (Option A default)': 'Hot Quadrant last-15 (Option A)
+
+Trigger
+- Top Junko quadrant ≥6 hits in last 15.
+
+Bets
+- Hot 5 numbers in that quadrant (plus neighbors if repeats are present).
+
+Progression
+- +$1 after 3 consecutive losing bet-spins
+- Reset to $1 on any win.',
+    'Disappearing Streets': 'Disappearing Streets
+
+Entry
+- Flat / choppy tables (no repeat numbers or repeat streets active).
+
+Bets
+- Start with 6–8 non-overlapping streets.
+- Remove winning streets.
+- Controlled progression (Fibonacci or slow).
+- Reset when 5 streets remain and you win.',
+    'Production (A/B)': 'Production (A/B)
+
+Entry
+- Dozen or Junko quadrant concentration.
+
+Style
+- Heavy coverage with mandatory stops/resets.
+
+Note
+- This tracker labels Production when dozens/quadrants are concentrated; exact bet structure depends on which Production variant you choose.',
     
-  var STRATEGY_DETAILS = {
-    "Junko Quadrants (switch8→next hot, cashout +150/-200)": `Junko Quadrants (single quadrant, all numbers) with a switch rule.
+    '50/50 Edge Rider': '50/50 Edge Rider (Red/Black, High/Low, Even/Odd)\n\nEntry (casino mode)\n- Triggered only when the last-20 shows BOTH:\n  • A run (streak) of ≥3 in the same side, AND\n  • A dominance of ≥12/20 for that side (greens excluded from the attribute).\n\nPlay\n- Bet 1 unit on the leading side (R/B or H/L or E/O).\n- If a loss occurs, you may either:\n  • Switch to the new leader if dominance flips, OR\n  • Sit out 1 spin and re-check.\n\nExit / Switch\n- Stop using 50/50 when:\n  • The run breaks, OR\n  • Dominance falls below 12/20, OR\n  • The tracker issues a trend-change alert.',
+'Follow-the-Leader 50/50': 'Follow-the-Leader 50/50
 
-How it runs in the tracker:
-• Uses your selected window (Last 10 / 15 / 20) to identify the “hottest” quadrant.
-• Bets that quadrant as the active pick.
-• If progression reaches an 8-count level and the spin misses, switch to the next-hottest quadrant (based on the same rolling window).
-• Session cashout: +$150 or -$200 (modeled in sims).`,
+Entry
+- Color or High/Low run of ≥3.
 
-    "DS Cash Power (v2)": `DS Cash Power (v2)
-
-Core idea:
-• 6 corner bets (6 Diamonds logic) + 1 double-street per dozen (3 total double-streets).
-• Base bets: corners at $5 unit, double-streets at $10 unit (as modeled previously).
-• Progression: after 2 consecutive “loss spins”, increase BOTH corners and double-streets by +1 base unit.
-• A “win spin” is: (any corner hits) OR (any double-street hits) OR (both hit).
-• Reset rule: if pnl is within 85% of the session-high pnl, reset and re-pick corners + double-streets.`,
-
-    "Holy Grail (2-dozen tracking / sit-out / reset)": `Holy Grail
-
-High-level:
-• Tracks dozens over a rolling window.
-• Bets 2 dozens when conditions are favorable.
-• Sit-out logic can be applied after a loss streak (varies by version).
-• Reset is triggered when pnl recovers to a % of session high (your variants used 75% or 85%).`,
-
-    "6 Diamonds (6 corners, unit up/down)": `6 Diamonds
-
-High-level:
-• 6 corner bets (coverage 24 numbers).
-• Unit up/down logic: increase after losses (rule varies by version) and reduce/hold after wins.
-• Reset can use a session-high recovery rule (e.g., 75%/85%).`
+Bets
+- Stay with the streak with tight caps.
+- Exit quickly when streak breaks.'
   };
 
-
-  function showExplain(play){
-    // Try to map the displayed title back to our STRATEGY_DETAILS keys.
-    var key = play;
-    if(!STRATEGY_DETAILS[key]){
-      // Normalize common suffixes/prefixes
-      key = String(play).replace(/\s*\(.*?\)\s*$/,"").trim();
-    }
-    var txt = STRATEGY_DETAILS[play] || STRATEGY_DETAILS[key] || ("No detailed notes found for:\n\n" + play);
-    $("explainText").textContent = txt;
-    $("explainModal").style.display = "flex";
+  
+  function openExplainModal(title, body){
+    var modal = $("expModal");
+    if(!modal) return alert(body||"");
+    $("expTitle").textContent = title || "Strategy details";
+    $("expBody").textContent = body || "";
+    modal.style.display = "block";
+  }
+  function closeExplainModal(){
+    var modal = $("expModal");
+    if(modal) modal.style.display = "none";
   }
 
-  // (deduped showExplain)
-
-
-
-  function save(){
+  function showExplain(play){
+    // Normalize dynamic strategy names (e.g., "50/50 Edge Rider (Red/Black)")
+    var key = play || "";
+    if(key.indexOf("50/50 Edge Rider")===0) key = "50/50 Edge Rider";
+    if(key.indexOf("Win 28")===0) key = "Win 28 (Table Probe)";
+    if(key.indexOf("6 Diamonds")===0) key = "6 Diamonds (Corner Core)";
+    if(key.indexOf("Junko Quadrants")===0) key = "Junko Quadrants (hot/dry)";
+    var txt = STRATEGY_DETAILS[key] || STRATEGY_DETAILS[play] || ("No details found for: " + play);
+    openExplainModal(play, txt);
+  }
+function save(){
     try{
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         spins: spins,
@@ -496,7 +607,7 @@ High-level:
       b.type="button";
       b.className="key";
       if (k==="00") b.className += " zero";
-      if (k===0) b.className += " green";
+      if (k===0) b.className += "green";
       b.textContent = String(k);
       b.addEventListener("click", function(){ addSpin(k); });
       kbd.appendChild(b);
@@ -653,11 +764,26 @@ function scoreStrategies(vals){
 
   // DS Cash Power favorability (last-15)
   var dsp = dsPickByCount(w15);
-  var dsSum = (dsp.d1.mx + dsp.d2.mx + dsp.d3.mx);
-  var dsHas3 = (dsp.d1.mx>=3)||(dsp.d2.mx>=3)||(dsp.d3.mx>=3);
+  var dsSum = (dsp.best.d1 + dsp.best.d2 + dsp.best.d3);
+  var dsHas3 = (dsp.best.d1 >= 3) || (dsp.best.d2 >= 3) || (dsp.best.d3 >= 3);
   var dsFavorable = (dsSum >= 8) && dsHas3;
 
-  // Holy Grail proxy favorability: top 2 dozens dominate last-15
+  
+  // Win 28 (Table Probe) — only suggest when last-20 shows high coverage hit-rate
+  // Coverage = 16 straights (incl 0/00) + Column 2 (no overlap by design).
+  var win28Straight = {0:1,1:1,3:1,7:1,9:1,12:1,13:1,15:1,22:1,24:1,27:1,28:1,30:1,34:1,36:1,99:1}; // 99 = "00"
+  var win28Col2 = {2:1,5:1,8:1,11:1,14:1,17:1,20:1,23:1,26:1,29:1,32:1,35:1};
+  var w28Hits20 = 0;
+  w20.forEach(function(n){
+    if(win28Straight[n] || win28Col2[n]) w28Hits20 += 1;
+  });
+  // If 12+ of last-20 are covered, it's a strong candidate (60%+).
+  if(w20.length>=20 && w28Hits20 >= 12){
+    var baseScore = 82 + (w28Hits20-12)*2;
+    if(baseScore>94) baseScore=94;
+    add("Win 28 (Table Probe)", baseScore, "Coverage hit-rate: "+w28Hits20+"/20 in last-20.", ["probe"]);
+  }
+// Holy Grail proxy favorability: top 2 dozens dominate last-15
   var dozArr = [cts15.d1, cts15.d2, cts15.d3].sort(function(a,b){return b-a;});
   var hgFavorable = (dozArr[0] + dozArr[1] >= 12);
 
@@ -688,7 +814,7 @@ function scoreStrategies(vals){
 
   // DS Cash Power
   if(dsFavorable){
-    add("DS Cash Power", 90, "DS bias: best-sum "+dsSum+" in last-15 (D1 "+dsp.d1.mx+", D2 "+dsp.d2.mx+", D3 "+dsp.d3.mx+").", ["ds"]);
+    add("DS Cash Power", 90, "DS bias: best-sum "+dsSum+" in last-15 (D1 "+dsp.best.d1+", D2 "+dsp.best.d2+", D3 "+dsp.best.d3+").", ["ds"]);
   }
 
   // Holy Grail
@@ -790,6 +916,38 @@ function scoreStrategies(vals){
   }
 
 
+
+  // Moving Streets (Adjacent Fade) — only when streets are NOT repeating (dispersion)
+  var rs5 = repeatStreetInfo(vals, 5);
+  if(!rs5.flag && tableState==="Flat / Choppy"){
+    add("Moving Streets (Adjacent Fade)", 64, "No repeat streets in last-5 + choppy table: fade last streets and bet adjacent streets.", ["street"]);
+  }
+
+  // 2nd Dozen DS Hedge — when 2nd dozen is leading and hedge DS are active
+  function dsHitCount(w, a,b){
+    var c=0;
+    for(var i=0;i<w.length;i++){
+      var n=w[i];
+      if(isGreen(n)) continue;
+      var s = streetIndex(n);
+      if((a<=s && s<=b)) c++;
+    }
+    return c;
+  }
+  var d2Lead = (cts15.d2 >= 7);
+  var ds10_15 = dsHitCount(w15, 3,4);   // streets 4-5 and 7-9 correspond? (approx) We'll use street indices: 10-12 is street3, 13-15 is street4
+  var ds22_27 = dsHitCount(w15, 7,8);   // 22-24 street7, 25-27 street8
+  var ds16_21 = dsHitCount(w15, 5,6);   // 16-18 street5, 19-21 street6
+  var hedgeHot = (ds10_15>=2) || (ds22_27>=2) || (ds16_21>=2);
+  if(d2Lead && hedgeHot){
+    add("2nd Dozen DS Hedge", 68, "2nd dozen leading ("+cts15.d2+"/15) + hedge double-streets showing repeats.", ["dozen","street"]);
+  }
+
+  // Palace — repeat-heavy grid coverage set
+  if(tableState==="Repeat-Heavy"){
+    add("Palace", 60, "Repeat signals ON (number/street repeats). Structured inside coverage can grind these phases.", ["inside"]);
+  }
+
 // FlipDozen Switch Option A (balanced-only)
   if(dozBalanced){
     add("FlipDozen Switch (A: dozens balanced-only)", 62, "Dozens balanced (spread ≤2 in last-15).", ["dozen"]);
@@ -829,7 +987,7 @@ function suggest(vals){
   var out = scoreStrategies(vals);
   return {state:out.state, play:out.primary.name, why:out.primary.why};
 }
-  function spinsForExport(){
+function spinsForExport(){
     if(exportScope==="all") return spins;
     if(exportScope==="session") return spins.filter(function(x){ return x.s===sessionId; });
     return spins.slice(0,20);
@@ -956,9 +1114,42 @@ function suggest(vals){
     // Trend change alert logic (simple, casino-friendly)
     // If you have an active strategy, alert when it is no longer in the top list OR its score drops below 80 for 2 consecutive updates.
     if(activeStrategy){
+      // If Win 28 is active, apply early-session probe rules (first 10 bet-spins).
+      if(activeStrategy.indexOf("Win 28")===0){
+        var since = spins.slice(0, Math.max(0, spins.length - activeStartLen)); // newest-first array; we want spins since activation
+        // spins[] is newest-first in this app; take first N since activation then reverse to chronological
+        var probe = since.slice(0,10).slice().reverse();
+        var w=0,l=0;
+        probe.forEach(function(x){ if(win28IsWin(numKey(x.number))) w++; else l++; });
+        // Only evaluate once you have at least 6 spins post-activation (avoid noise).
+        if(probe.length>=6){
+          // If 3 losses before reaching 2 wins within first 10 spins => recommend switch immediately.
+          if(l>=3 && w<2){
+            alertBox.style.display = "block";
+            var nextP = scored.primary ? scored.primary.name : "Sit out";
+            alertText.textContent = "Win 28 probe looks hostile (first "+probe.length+" spins: "+w+"W/"+l+"L). Switch now to: "+nextP+".";
+          }
+          // If you get 2+ wins within first 10 spins => keep playing; suppress badCount escalation.
+          if(w>=2){
+            badCount = 0;
+          }
+        }
+      }
+
       var activeObj = null;
       scored.plays.forEach(function(p){ if(p.name===activeStrategy) activeObj=p; });
-      var activeOk = !!activeObj && activeObj.score >= 80;
+      
+      // Win 28 probe downgrade: if 3 losses before 2 wins in first 10 spins, treat as not OK even if scored.
+      if(activeStrategy.indexOf("Win 28")===0){
+        var since2 = spins.slice(0, Math.max(0, spins.length - activeStartLen));
+        var probe2 = since2.slice(0,10).slice().reverse();
+        var w2=0,l2=0;
+        probe2.forEach(function(x){ if(win28IsWin(numKey(x.number))) w2++; else l2++; });
+        if(probe2.length>=6 && l2>=3 && w2<2){
+          activeObj = null;
+        }
+      }
+var activeOk = !!activeObj && activeObj.score >= 80;
       if(!activeOk){
         badCount += 1;
       }else{
@@ -1315,8 +1506,39 @@ function suggest(vals){
   });
 
   buildKeypad();
-  render();
+  
+  // Explain modal handlers
+  if($("expClose")) $("expClose").addEventListener("click", closeExplainModal);
+  if($("expBackdrop")) $("expBackdrop").addEventListener("click", closeExplainModal);
+render();
 })();
+
+  // Win 28 risk mode selector (UI only; used for guidance/explanations)
+  (function initWin28RiskMode(){
+    const sel = document.getElementById('win28RiskMode');
+    if(!sel) return;
+    const key = 'win28RiskMode';
+    const saved = localStorage.getItem(key);
+    if(saved) sel.value = saved;
+    sel.addEventListener('change', () => {
+      localStorage.setItem(key, sel.value);
+      toast('Win 28 mode: ' + (sel.value==='defensive' ? 'Defensive (+100 / -260)' : 'Aggressive (+100 / -545)'));
+    });
+  })();
+
 </script>
+
+  <!-- Explain modal -->
+  <div id="expModal" style="display:none;position:fixed;inset:0;z-index:9999;">
+    <div id="expBackdrop" style="position:absolute;inset:0;background:rgba(0,0,0,.55)"></div>
+    <div style="position:relative;max-width:680px;margin:8vh auto;background:#111827;color:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.45);padding:16px 16px 12px 16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <div id="expTitle" style="font-weight:800;font-size:16px;line-height:1.2">Strategy details</div>
+        <button id="expClose" class="btn small" style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);">Close</button>
+      </div>
+      <pre id="expBody" style="margin:12px 0 0 0;white-space:pre-wrap;word-wrap:break-word;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;font-size:12px;line-height:1.35;background:rgba(255,255,255,.06);padding:12px;border-radius:12px;max-height:58vh;overflow:auto;"></pre>
+    </div>
+  </div>
+
 </body>
 </html>
