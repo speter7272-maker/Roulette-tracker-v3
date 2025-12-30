@@ -3,127 +3,643 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Roulette Trend Tracker • Build: 2025-12-30 • working keypad</title>
+  <title>Roulette Trend Tracker • Build: 2025-12-30 • keypad + wheel histogram</title>
   <style>
-    :root{color-scheme:dark; --bg:#0b1220; --card:#0f1a2e; --muted:#94a3b8; --txt:#e5e7eb; --border:#1f2a44; --chip:#111c33; --accent:#60a5fa;}
+    :root{color-scheme:dark; --bg:#0b1220; --card:#0f1a2e; --muted:#94a3b8; --txt:#e5e7eb; --accent:#60a5fa; --warn:#fbbf24; --danger:#ef4444; --ok:#34d399; --chip:#111c33; --border:#1f2a44;}
     *{box-sizing:border-box}
     body{margin:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(180deg,#070b14,#0b1220 40%,#070b14);color:var(--txt)}
     .wrap{max-width:980px;margin:0 auto;padding:18px 14px 40px}
-    .card{background:rgba(15,26,46,.88);border:1px solid var(--border);border-radius:16px;padding:14px;margin:12px 0;box-shadow:0 8px 28px rgba(0,0,0,.25)}
     h1{font-size:20px;margin:0 0 6px}
-    .sub{color:var(--muted);font-size:12px;line-height:1.35}
+    .sub{color:var(--muted);font-size:12px;margin-bottom:12px;line-height:1.35}
+    .card{background:rgba(15,26,46,.88);border:1px solid var(--border);border-radius:16px;padding:14px;margin:12px 0;box-shadow:0 8px 28px rgba(0,0,0,.25)}
     .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
     .pill{background:var(--chip);border:1px solid var(--border);border-radius:999px;padding:8px 10px;font-size:12px;color:var(--muted)}
     .pill b{color:var(--txt)}
-    .btn{appearance:none;border:1px solid var(--border);background:var(--chip);color:var(--txt);padding:10px 12px;border-radius:12px;font-weight:700;cursor:pointer}
+    .btn{appearance:none;border:1px solid var(--border);background:var(--chip);color:var(--txt);padding:10px 12px;border-radius:12px;font-weight:600;cursor:pointer}
+    .btn.small{padding:6px 10px;font-size:12px;border-radius:10px}
+    .btn:active{transform:translateY(1px)}
     .btn.primary{border-color:rgba(96,165,250,.45);background:rgba(96,165,250,.18)}
     .btn.danger{border-color:rgba(239,68,68,.45);background:rgba(239,68,68,.12)}
-    input[type="text"]{width:100%;border-radius:14px;border:1px solid var(--border);background:#0b152b;color:var(--txt);padding:10px}
-    textarea{width:100%;min-height:110px;border-radius:14px;border:1px solid var(--border);background:#0b152b;color:var(--txt);padding:10px}
+    .btn.ghost{background:transparent}
+    .grid{display:grid;grid-template-columns:1fr;gap:10px}
+    @media(min-width:860px){.grid{grid-template-columns:1.1fr .9fr}}
+    .banner{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;
+      background:rgba(96,165,250,.14);
+      border:1px solid rgba(96,165,250,.35);
+      border-radius:14px;
+      padding:10px 12px;
+      margin:10px 0 6px;
+    }
+    .banner .msg{font-size:13px;line-height:1.25}
+    .banner .msg b{color:#dbeafe}
     .kbd{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
-    .key{padding:12px 8px;border-radius:12px;border:1px solid var(--border);background:#0c1730;color:var(--txt);font-weight:900;cursor:pointer}
-    .key.zero{background:rgba(245,158,11,.16);border-color:rgba(245,158,11,.35)}
+    .key{padding:12px 8px;border-radius:12px;border:1px solid var(--border);background:#0c1730;color:var(--txt);font-weight:800;cursor:pointer}
     .key.green{background:rgba(16,185,129,.16);border-color:rgba(16,185,129,.35)}
-    .key:active,.btn:active{transform:translateY(1px)}
-    .hr{height:1px;background:var(--border);margin:12px 0}
+    .key.zero{background:rgba(245,158,11,.16);border-color:rgba(245,158,11,.35)}
+    .key:active{transform:translateY(1px)}
+    .stat{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .stat .box{background:#0c1730;border:1px solid var(--border);border-radius:14px;padding:10px}
+    .box .k{color:var(--muted);font-size:11px}
+    .box .v{font-size:16px;font-weight:800;margin-top:2px}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+    textarea{width:100%;min-height:86px;border-radius:14px;border:1px solid var(--border);background:#0b152b;color:var(--txt);padding:10px}
+    input[type="text"]{width:100%;border-radius:14px;border:1px solid var(--border);background:#0b152b;color:var(--txt);padding:10px}
     .small{font-size:12px;color:var(--muted)}
+    .hr{height:1px;background:var(--border);margin:12px 0}
+    .help{display:none}
+    .help.open{display:block}
+  
+  .modalOverlay{
+    position:fixed; inset:0; z-index:9999;
+    background:rgba(0,0,0,0.55);
+    display:flex; align-items:center; justify-content:center;
+    padding:14px;
+    backdrop-filter: blur(6px);
+  }
+  .modalCard{
+    width:min(680px, 100%);
+    background:rgba(20,28,45,0.95);
+    border:1px solid rgba(255,255,255,0.10);
+    border-radius:18px;
+    box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+    padding:14px;
+  }
+  .modalHeader{
+    display:flex; align-items:flex-start; justify-content:space-between;
+    gap:10px; margin-bottom:10px;
+  }
+
+
+    .alert{border:1px solid rgba(220,38,38,.35);background:rgba(220,38,38,.08);padding:12px;border-radius:12px}
+    .topplays{display:grid;grid-template-columns:repeat(1,1fr);gap:8px}
+    .playcard{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);padding:10px;border-radius:12px}
+    .playhdr{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+    .pill{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.14);opacity:.9}
+    .small{font-size:12px;opacity:.9;line-height:1.25}
+
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
     <div class="sub">
-      <div style="margin-top:6px;color:#c7d2fe;font-weight:800;">Build: 2025-12-30 • working keypad</div>
-      Tap spins. Saves on-device. (This is the “known-good” keypad build.)
+      <div style="margin-top:6px;color:#c7d2fe;font-weight:700;">Build: 2025-12-30 • keypad + wheel histogram</div>
+Tap spins. Tracks last 10/15/20: Junko quadrants, columns, dozens, red/black, high/low, even/odd. Saves on-device.</div>
+
+    <!-- Option B: banner cue -->
+    <div class="banner" id="banner">
+      <div class="msg">
+        <b>How to enter spins:</b> tap a number on the keypad below (or type in the box and hit <b>Add</b>).<br/>
+        If you don’t see the keypad, tap <b>Jump to keypad</b>.
+      </div>
+      <button class="btn primary" id="jumpBtn" type="button">Jump to keypad</button>
     </div>
 
     <div class="card">
       <div class="row">
-        <div class="pill">Spins (all): <b id="spinCount">0</b></div>
+        <div class="pill">Window: <b id="winLabel">Last 15</b></div>
+        <div class="pill">Spins: <b id="spinCount">0</b></div>
         <div class="pill">Session: <b id="sessionCount">0</b></div>
-        <button class="btn" id="newSessionBtn" type="button">New Session</button>
+        <div class="pill">Green: <b id="greenCount">0</b></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <label class="pill" style="gap:10px; align-items:center; width:100%">
+          Casino:
+          <input id="casinoInput" class="inp" type="text" placeholder="e.g., Caesars / Harrah’s Joliet" style="flex:1; min-width:180px" />
+        </label>
+      </div>
+
+
+      <div class="row" style="margin-top:10px">
         <button class="btn" id="undoBtn" type="button">Undo</button>
-        <button class="btn danger" id="clearBtn" type="button">Clear All</button>
+        <button class="btn danger" id="clearBtn" type="button">Clear</button>
+        <button class="btn" id="use15Btn" type="button">Use last 15</button>
+        <button class="btn" id="use10Btn" type="button">Use last 10</button>
+        <button class="btn" id="use20Btn" type="button">Use last 20</button>
+        <button class="btn ghost" id="helpBtn" type="button">Help</button>
       </div>
 
-      <div class="hr"></div>
-
-      <div style="font-weight:900;margin-bottom:8px">Quick input</div>
-      <div class="row">
-        <div style="flex:1;min-width:180px">
-          <input id="manualInput" type="text" placeholder="Type: 0–36 or 00" inputmode="text" />
+      <div class="help" id="help">
+        <div class="hr"></div>
+        <div class="small">
+          <b>Entering 00:</b> tap <span class="mono">00</span> on the keypad. In exports, 00 is written as <span class="mono">00</span> (text).<br/>
+          <b>CSV export:</b> Simple format: <span class="mono">number,casino,date</span>. You can fill casino/date later.
         </div>
-        <button class="btn primary" id="addManualBtn" type="button">Add</button>
       </div>
-      <div class="small" style="margin-top:8px">Tip: keypad is usually fastest. Manual input is a backup.</div>
-
-      <div class="hr"></div>
-
-      <div id="keypadAnchor" style="font-weight:900;margin-bottom:8px">Tap keypad</div>
-      <div class="kbd" id="kbd"></div>
     </div>
 
-    <div class="card">
-      <div style="font-weight:900;margin-bottom:8px">Last 20 (newest first)</div>
-      <textarea id="lastList" readonly placeholder="No spins yet."></textarea>
-      <div class="small" style="margin-top:8px">
-        Storage key: <span style="font-family:ui-monospace,Menlo,Consolas,monospace;">roulette_trend_tracker_keypad_good_v1</span>
+    <div class="grid">
+      <div class="card">
+        <div style="font-weight:800;margin-bottom:8px">Quick input</div>
+        <div class="row">
+          <input id="manualInput" type="text" placeholder="Type: 0–36 or 00" inputmode="text" />
+          <button class="btn primary" id="addManualBtn" type="button">Add</button>
+        </div>
+        <div class="small" style="margin-top:8px">Tip: On iPhone, the keypad is usually fastest. Manual input is a backup.</div>
+
+        <div class="hr"></div>
+
+        <div id="keypadAnchor" style="font-weight:800;margin-bottom:8px">Tap keypad</div>
+        <div class="kbd" id="kbd"></div>
+      </div>
+
+      
+      <div class="card">
+        <div style="font-weight:800;margin-bottom:8px">Repeats &amp; hot numbers</div>
+        <div class="grid">
+          <div class="mini">
+            <div class="label">Top 3 hot numbers (window)</div>
+            <div class="value" id="hot3">—</div>
+          </div>
+          <div class="mini">
+            <div class="label">Repeat numbers ≤ 5 spins</div>
+            <div class="value" id="repeatNum5">—</div>
+          </div>
+          <div class="mini">
+            <div class="label">Repeat streets ≤ 3 spins</div>
+            <div class="value" id="repeatStreet3">—</div>
+          </div>
+        </div>
+        <div class="hint" style="margin-top:10px">
+          Use this to decide whether to keep/avoid removing streets/corners when repeats are clustering.
+        </div>
+      </div>
+
+<div class="card">
+        <div style="font-weight:800;margin-bottom:8px">Trend summary</div>
+        <div class="stat">
+          <div class="box"><div class="k">Recommended play</div><div class="v" id="recommend">Sit out</div><button id="explainBtn" class="btn small" style="margin-top:8px;display:none">Explain</button><div class="k" id="reason">No data yet.</div></div>
+          <div class="box"><div class="k">Table state</div><div class="v" id="state">—</div><div class="k" id="state2">—</div></div>
+        </div>
+
+        
+        <div id="alertBox" class="alert" style="display:none;margin-top:10px">
+          <div style="font-weight:800;margin-bottom:4px">Trend change alert</div>
+          <div id="alertText">—</div>
+          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn" id="setActiveBtn">Set active to recommended</button>
+            <button class="btn" id="clearActiveBtn">Clear active</button>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+
+        <div style="font-weight:800;margin-bottom:8px">Top strategies right now</div>
+
+        <div class="row" style="gap:10px;align-items:center;margin:-2px 0 10px 0;">
+          <div class="pill" style="font-size:12px;">Win 28 risk mode</div>
+          <select id="win28RiskMode" class="btn" style="padding:8px 10px;">
+            <option value="aggressive">Aggressive (+100 / -545)</option>
+            <option value="defensive">Defensive (+100 / -260)</option>
+          </select>
+        </div>
+        <div id="topPlays" class="topplays"></div>
+<div class="hr"></div>
+
+        <div class="stat">
+          <div class="box"><div class="k">Columns (C1/C2/C3)</div><div class="v mono" id="cols">0 / 0 / 0</div></div>
+          <div class="box"><div class="k">Dozens (D1/D2/D3)</div><div class="v mono" id="doz">0 / 0 / 0</div></div>
+          
+          <div class="box"><div class="k">Double Streets (per dozen)</div><div class="v mono" id="ds">D1 — | D2 — | D3 —</div></div>
+<div class="box"><div class="k">Red / Black</div><div class="v mono" id="rb">0 / 0</div></div>
+          <div class="box"><div class="k">High / Low</div><div class="v mono" id="hl">0 / 0</div></div>
+          <div class="box"><div class="k">Even / Odd</div><div class="v mono" id="eo">0 / 0</div></div>
+          <div class="box"><div class="k">Junko quadrants</div><div class="v mono" id="junko">GN 0 | HO 0 | LO 0 | M 0</div></div>
+        </div>
+
+        <div class="hr"></div>
+
+        <div style="font-weight:800;margin-bottom:8px">Last 20 (newest first)</div>
+        <textarea id="lastList" readonly placeholder="No spins yet."></textarea>
+
+        
+      <div class="card" style="margin-top:14px;">
+        <div class="h2">Import session CSV (append to history)</div>
+        <div class="hint">Paste the CSV you shared (including header) then tap Import. This will merge into on-device history.</div>
+        <textarea id="importArea" class="input" style="height:120px; margin-top:10px;" placeholder="Paste CSV here..."></textarea>
+        <div class="row" style="margin-top:10px; gap:10px; flex-wrap:wrap;">
+          <button class="btn primary" id="importBtn" type="button">Import CSV</button>
+          <button class="btn" id="clearImportBtn" type="button">Clear Import Box</button>
+        </div>
+        <div class="hint" id="importStatus" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="row" style="margin-top:10px; flex-wrap:wrap">
+          <button class="btn" id="newSessionBtn" type="button">New Session</button>
+          <button class="btn primary" id="xLast20Btn" type="button">Export LAST 20</button>
+          <button class="btn" id="xSessionBtn" type="button">Export SESSION</button>
+          <button class="btn" id="xAllBtn" type="button">Export ALL</button>
+          <button class="btn" id="wheelViewBtn" type="button">Wheel View (Last 20)</button>
+          <button class="btn" id="copyCsvBtn" type="button">Copy CSV</button>
+          <button class="btn" id="downloadCsvBtn" type="button">Download CSV</button>
+        </div>
       </div>
     </div>
   </div>
 
+
+    <!-- Wheel View Modal -->
+    <div id="wheelModal" class="modalOverlay" style="display:none;">
+      <div class="modalCard">
+        <div class="modalHeader">
+          <div>
+            <div class="h2" style="margin:0;">American Wheel — Last 20</div>
+            <div class="hint" id="wheelSubtitle" style="margin-top:4px;">Radial bars show hit count per pocket (most recent 20 spins).</div>
+          </div>
+          <button class="btn" id="wheelCloseBtn" type="button">Close</button>
+        </div>
+        <canvas id="wheelCanvas" width="420" height="420" style="width:100%; max-width:520px; border-radius:16px; background:rgba(255,255,255,0.03);"></canvas>
+        <div class="hint" style="margin-top:10px;">
+          Tip: Longer / more stacked bars = more hits in the last 20. Green pockets are 0 and 00.
+        </div>
+      </div>
+    </div>
+
+
 <script>
 (function(){
-  "use strict";
+  var STORAGE_KEY = "roulette_trend_tracker_v5_1";
+  var RED = {}; [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36].forEach(function(x){ RED[x]=1; });
+  var BLACK = {}; [2,4,6,8,10,11,13,15,17,20,22,24,26,28,29,31,33,35].forEach(function(x){ BLACK[x]=1; });
 
-  const STORAGE_KEY = "roulette_trend_tracker_keypad_good_v1";
+  var GN = {"00":1,1:1,13:1,27:1,10:1,0:1,2:1,14:1,28:1,9:1};
+  var HO = {24:1,25:1,26:1,29:1,30:1,33:1,36:1,35:1,34:1};
+  var LO = {3:1,4:1,8:1,11:1,12:1,15:1,16:1,22:1,23:1};
+  var MID= {5:1,17:1,32:1,20:1,7:1,21:1,6:1,18:1,31:1,19:1};
 
-  const $ = (id) => document.getElementById(id);
+  function numToKey(n){
+    if (n === "00") return "00";
+    if (typeof n === "string" && n.trim() === "00") return "00";
+    var v = Number(n);
+    return isFinite(v) ? v : null;
+  }
 
-  let spins = [];        // newest-first: {n: number|string ("00"), t: ms, s: sessionId}
-  let sessionId = 1;
+  function isGreen(n){ return (n === "00" || Number(n) === 0); }
+  function isRed(n){ return (n !== "00" && RED[Number(n)]===1); }
+  function isBlack(n){ return (n !== "00" && BLACK[Number(n)]===1); }
+  function isHigh(n){ return (n !== "00" && Number(n) >= 19); }
+  function isLow(n){ return (n !== "00" && Number(n) >= 1 && Number(n) <= 18); }
+  function isEven(n){ return (n !== "00" && Number(n) !== 0 && Number(n)%2===0); }
+  function isOdd(n){ return (n !== "00" && Number(n)%2===1); }
 
-  function numToKey(raw){
-    if(raw === "00") return "00";
-    if(typeof raw === "string" && raw.trim() === "00") return "00";
-    const n = Number(raw);
-    if(!Number.isFinite(n)) return null;
-    if(n === 0) return 0;
-    if(n >= 1 && n <= 36) return n;
+  function colOf(n){
+    if (n === "00" || n === 0) return null;
+    var v = Number(n);
+    if (!(v>=1 && v<=36)) return null;
+    var r = v % 3;
+    return r === 1 ? 1 : (r === 2 ? 2 : 3);
+  }
+  function dozenOf(n){
+    if (n === "00" || n === 0) return null;
+    var v = Number(n);
+    if (!(v>=1 && v<=36)) return null;
+    return v<=12 ? 1 : (v<=24 ? 2 : 3);
+  }
+
+  function dsKey(n){
+    if (n === "00" || n === 0) return null;
+    var v = Number(n);
+    if (!(v>=1 && v<=36)) return null;
+    var d = v<=12 ? 1 : (v<=24 ? 2 : 3);
+    var base = (d-1)*12;
+    var a = base+1, b = base+4, c = base+7;
+    // DS1: a..a+5, DS2: b..b+5, DS3: c..c+5
+    if (v>=a && v<=a+5) return {d:d, i:1};
+    if (v>=b && v<=b+5) return {d:d, i:2};
+    if (v>=c && v<=c+5) return {d:d, i:3};
+    return {d:d, i:2}; // fallback (shouldn't happen)
+  }
+  function dsCounts(vals){
+    var out = {d1:[0,0,0], d2:[0,0,0], d3:[0,0,0]};
+    vals.forEach(function(n){
+      var k = dsKey(n);
+      if(!k) return;
+      var arr = (k.d===1?out.d1:(k.d===2?out.d2:out.d3));
+      arr[k.i-1] += 1;
+    });
+    return out;
+  }
+  function dsPickByCount(vals){
+    var dc = dsCounts(vals);
+    function best(arr){
+      var mx = Math.max(arr[0],arr[1],arr[2]);
+      var idx = (arr[0]===mx?1:(arr[1]===mx?2:3));
+      return {mx:mx, idx:idx};
+    }
+    return {d1:best(dc.d1), d2:best(dc.d2), d3:best(dc.d3), dc:dc};
+  }
+  function streetId(n){
+    if (n === "00" || n === 0) return null;
+    var v = Number(n);
+    if (!(v>=1 && v<=36)) return null;
+    return Math.floor((v-1)/3) + 1;
+  }
+
+  function junkoBucket(n){
+    var k = (n==="00") ? "00" : Number(n);
+    if (GN[k]) return "GN";
+    if (HO[k]) return "HO";
+    if (LO[k]) return "LO";
+    if (MID[k]) return "M";
     return null;
   }
 
-  function save(){
+  var spins = [];          // newest-first {n,t,s}
+  var windowN = 15;
+  var sessionId = 1;
+  var exportScope = "last20"; // last20|session|all
+
+  function $(id){ return document.getElementById(id); }
+
+  function toast(msg){
     try{
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({spins, sessionId}));
+      var t = document.createElement("div");
+      t.textContent = String(msg||"");
+      t.style.position="fixed";
+      t.style.left="50%";
+      t.style.bottom="18px";
+      t.style.transform="translateX(-50%)";
+      t.style.zIndex="10000";
+      t.style.background="rgba(0,0,0,0.72)";
+      t.style.color="#fff";
+      t.style.padding="10px 12px";
+      t.style.borderRadius="12px";
+      t.style.fontSize="13px";
+      t.style.maxWidth="92vw";
+      t.style.textAlign="center";
+      t.style.border="1px solid rgba(255,255,255,0.15)";
+      document.body.appendChild(t);
+      setTimeout(function(){ t.style.opacity="0"; t.style.transition="opacity .25s"; }, 1400);
+      setTimeout(function(){ if(t && t.parentNode) t.parentNode.removeChild(t); }, 1750);
+    }catch(e){}
+  }
+
+  var winLabel = $("winLabel");
+  var casinoInput = $("casinoInput");
+
+  var spinCount = $("spinCount");
+  var sessionCount = $("sessionCount");
+  var greenCount = $("greenCount");
+  var lastList = $("lastList");
+
+  var hot3El = $("hot3");
+  var repeatNum5El = $("repeatNum5");
+  var repeatStreet3El = $("repeatStreet3");
+
+  var recommend = $("recommend");
+  var reason = $("reason");
+  var state = $("state");
+  var state2 = $("state2");
+
+
+  var topPlays = $("topPlays");
+  var alertBox = $("alertBox");
+  var alertText = $("alertText");
+  var setActiveBtn = $("setActiveBtn");
+  var clearActiveBtn = $("clearActiveBtn");
+
+  var ACTIVE_KEY = "roulette_active_strategy_v1";
+  var activeStrategy = localStorage.getItem(ACTIVE_KEY) || "";
+  var activeStartLen = parseInt(localStorage.getItem('activeStartLen')||"0",10) || 0;
+  var badCount = 0;
+
+  function setActive(name){
+    activeStrategy = name || "";
+    badCount = 0;
+    if(activeStrategy){
+      localStorage.setItem(ACTIVE_KEY, activeStrategy);
+    } else {
+      localStorage.removeItem(ACTIVE_KEY);
+    }
+  }
+  function escapeHtml(s){
+    s = (s==null) ? "" : String(s);
+    return s.replace(/[&<>"']/g, function(ch){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]) || ch;
+    });
+  }
+    // Win 28 handoff logic (first-10 spin probe)
+    function win28IsWin(n){
+      // n is numeric key (0..36 or 99 for "00")
+      if(n===99) return true;
+      if(n===0||n===1||n===3||n===7||n===9||n===12||n===13||n===15||n===22||n===24||n===27||n===28||n===30||n===34||n===36) return true;
+      if(n===2||n===5||n===8||n===11||n===14||n===17||n===20||n===23||n===26||n===29||n===32||n===35) return true;
+      return false;
+    }
+
+
+
+
+  var cols = $("cols");
+  var doz = $("doz");
+  var ds = $("ds");
+  var rb = $("rb");
+  var hl = $("hl");
+  var eo = $("eo");
+  var junko = $("junko");
+
+  var kbd = $("kbd");
+  var manualInput = $("manualInput");
+  var explainBtn = $("explainBtn");
+
+    var STRATEGY_DETAILS = {
+    'DS Cash Power': 'DS Cash Power
+
+Setup
+- Observe first 15 spins.
+- For each dozen, select the hottest double-street (6-line) by hit-count in the last-15.
+
+Bets (base)
+- Corners: 6 Diamonds corner set, $5 per corner.
+- Double streets: 1 double-street per dozen, $10 each (3 total).
+
+Win/Loss definition (per your rule)
+- WIN only if ANY double-street hits.
+- Corner-only hits are treated as a LOSS for progression.
+
+Progression (global, step only after 2 losses)
+- Track “losses” as defined above.
+- After 2 consecutive losses:
+  - Corners: +$5 per corner (6D unit up)
+  - Double streets: +$10 to EACH of the 3 double streets
+- On a DS WIN:
+  - Corners: down 1 unit (min $5)
+  - Loss counter resets
+
+Reset
+- If PnL ≥ 85% of session high: reset bets to base and re-pick DS + corners (if using adaptive corners).',
+    '6 Diamonds (Corner Core)': '6 Diamonds (Corner Core)
+
+Bets
+- 6 fixed corners (your standard 6).
+
+Progression
+- Loss: increase ALL corners by +1 unit.
+- Win: decrease ALL corners by −1 unit (minimum 1 unit).
+
+Use when
+- Repeat-heavy tables (number repeats within ≤5, or street repeats within ≤3).',
+    'Holy Grail': "Holy Grail (2-dozen tracking / sit-out / reset)
+
+This tracker uses the Holy Grail rules you provided in prior sims:
+- Bet two dozens under your HG trigger logic
+- Sit-out / reset rules per your HG spec
+(If you want the exact current implementation text shown here, paste your final HG rules and I'll pin them verbatim.)",
+    'Junko Quadrants': 'Junko Quadrants
+
+Quadrants (American wheel mapping in your brief)
+- Green Neighbors: 00,0,1,2,9,10,13,14,27,28
+- High Orphans: 24,25,26,29,30,33,34,35,36
+- Low Orphans: 3,4,8,11,12,15,16,22,23
+- Middle: 5,6,7,17,18,19,20,21,31,32
+
+Selection
+- Based on last-15: choose hottest/driest depending on the mode you’re using.
+
+Progression
+- Uses your currently selected progression/reset rules (varies by version).',
+    'Fibonacci Spiral — Column-Led Follow-Winner': 'Fibonacci Spiral — Column-Led Follow-Winner
+
+Entry
+- Observe first 15 spins.
+- Identify dominant column (≥7 hits in last 15).
+
+Bets
+- 2 units on dominant column
+- 1 unit on second hottest column
+- Follow the winning column each spin.
+
+Progression
+- Modified Fibonacci ladder (per your spec), with caps/resets.',
+    'Black Chip / Black Anchor': 'Black Chip / Black Anchor
+
+Bets
+- Black anchor bet plus small structural corner coverage (per your spec).
+
+Use when
+- Black/column structure is visibly skewed.
+
+Reset
+- Reset when within your session-high threshold.',
+    'Hot Quadrant last-15 (Option A default)': 'Hot Quadrant last-15 (Option A)
+
+Trigger
+- Top Junko quadrant ≥6 hits in last 15.
+
+Bets
+- Hot 5 numbers in that quadrant (plus neighbors if repeats are present).
+
+Progression
+- +$1 after 3 consecutive losing bet-spins
+- Reset to $1 on any win.',
+    'Disappearing Streets': 'Disappearing Streets
+
+Entry
+- Flat / choppy tables (no repeat numbers or repeat streets active).
+
+Bets
+- Start with 6–8 non-overlapping streets.
+- Remove winning streets.
+- Controlled progression (Fibonacci or slow).
+- Reset when 5 streets remain and you win.',
+    'Production (A/B)': 'Production (A/B)
+
+Entry
+- Dozen or Junko quadrant concentration.
+
+Style
+- Heavy coverage with mandatory stops/resets.
+
+Note
+- This tracker labels Production when dozens/quadrants are concentrated; exact bet structure depends on which Production variant you choose.',
+    
+    '50/50 Edge Rider': '50/50 Edge Rider (Red/Black, High/Low, Even/Odd)\n\nEntry (casino mode)\n- Triggered only when the last-20 shows BOTH:\n  • A run (streak) of ≥3 in the same side, AND\n  • A dominance of ≥12/20 for that side (greens excluded from the attribute).\n\nPlay\n- Bet 1 unit on the leading side (R/B or H/L or E/O).\n- If a loss occurs, you may either:\n  • Switch to the new leader if dominance flips, OR\n  • Sit out 1 spin and re-check.\n\nExit / Switch\n- Stop using 50/50 when:\n  • The run breaks, OR\n  • Dominance falls below 12/20, OR\n  • The tracker issues a trend-change alert.',
+'Follow-the-Leader 50/50': 'Follow-the-Leader 50/50
+
+Entry
+- Color or High/Low run of ≥3.
+
+Bets
+- Stay with the streak with tight caps.
+- Exit quickly when streak breaks.'
+  };
+
+  
+  function openExplainModal(title, body){
+    var modal = $("expModal");
+    if(!modal) return alert(body||"");
+    $("expTitle").textContent = title || "Strategy details";
+    $("expBody").textContent = body || "";
+    modal.style.display = "block";
+  }
+  function closeExplainModal(){
+    var modal = $("expModal");
+    if(modal) modal.style.display = "none";
+  }
+
+  function showExplain(play){
+    // Normalize dynamic strategy names (e.g., "50/50 Edge Rider (Red/Black)")
+    var key = play || "";
+    if(key.indexOf("50/50 Edge Rider")===0) key = "50/50 Edge Rider";
+    if(key.indexOf("Win 28")===0) key = "Win 28 (Table Probe)";
+    if(key.indexOf("6 Diamonds")===0) key = "6 Diamonds (Corner Core)";
+    if(key.indexOf("Junko Quadrants")===0) key = "Junko Quadrants (hot/dry)";
+    var txt = STRATEGY_DETAILS[key] || STRATEGY_DETAILS[play] || ("No details found for: " + play);
+    openExplainModal(play, txt);
+  }
+function save(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        spins: spins,
+        windowN: windowN,
+        sessionId: sessionId,
+        exportScope: exportScope,
+        casino: (casinoInput && casinoInput.value) ? casinoInput.value : ""
+      }));
     }catch(e){}
   }
 
   function load(){
     try{
-      const raw = localStorage.getItem(STORAGE_KEY);
+      var raw = localStorage.getItem(STORAGE_KEY);
       if(!raw) return;
-      const obj = JSON.parse(raw);
-      if(Array.isArray(obj.spins)){
-        spins = obj.spins.map(x => ({
-          n: numToKey(x.n ?? x),
-          t: Number(x.t) || Date.now(),
-          s: Number(x.s) || 1
-        })).filter(x => x.n !== null);
+      var obj = JSON.parse(raw);
+      if (Array.isArray(obj.spins)) {
+        spins = obj.spins.map(function(x){
+          if(!x) return null;
+          if (typeof x === "string" || typeof x === "number") {
+            return { n: numToKey(x), t: Date.now(), s: 1 };
+          }
+          return { n: numToKey(x.n), t: Number(x.t)||Date.now(), s: Number(x.s)||1 };
+        }).filter(function(x){ return x && x.n!==null; });
       }
-      if(Number.isFinite(obj.sessionId)) sessionId = Number(obj.sessionId);
+      if ([10,15,20].indexOf(obj.windowN) !== -1) windowN = obj.windowN;
+      if (isFinite(obj.sessionId)) sessionId = Number(obj.sessionId);
+      if (obj.exportScope==="last20" || obj.exportScope==="session" || obj.exportScope==="all") exportScope = obj.exportScope;
+      if (casinoInput && typeof obj.casino === "string") casinoInput.value = obj.casino;
     }catch(e){}
   }
 
-  function render(){
-    $("spinCount").textContent = String(spins.length);
-    $("sessionCount").textContent = String(spins.filter(x => x.s === sessionId).length);
-    $("lastList").value = spins.slice(0,20).map(x => (x.n === "00" ? "00" : String(x.n))).join(", ");
+  function buildKeypad(){
+    var keys = ["00",0];
+    for(var i=1;i<=36;i++) keys.push(i);
+    kbd.innerHTML = "";
+    keys.forEach(function(k){
+      var b = document.createElement("button");
+      b.type="button";
+      b.className="key";
+      if (k==="00") b.className += " zero";
+      if (k===0) b.className += " green";
+      b.textContent = String(k);
+      b.addEventListener("click", function(){ addSpin(k); });
+      kbd.appendChild(b);
+    });
   }
 
   function addSpin(val){
-    const k = numToKey(val);
-    if(k === null) return;
+    var k = numToKey(val);
+    if(k===null) return;
     spins.unshift({ n: k, t: Date.now(), s: sessionId });
     if(spins.length > 5000) spins = spins.slice(0,5000);
     save();
@@ -131,70 +647,915 @@
   }
 
   function undo(){
-    if(spins.length === 0) return;
+    if(spins.length===0) return;
     spins.shift();
     save();
     render();
   }
 
   function clearAll(){
-    if(!confirm("Clear ALL spins (this deletes stored history on this device)?")) return;
+    if(!confirm("Clear all spins?")) return;
     spins = [];
     sessionId = 1;
+    exportScope = "last20";
     save();
     render();
   }
 
   function newSession(){
-    sessionId += 1;
+    sessionId = sessionId + 1;
+    exportScope = "session";
+    setExportButtons();
     save();
     render();
   }
 
-  function buildKeypad(){
-    const keys = ["00", 0];
-    for(let i=1;i<=36;i++) keys.push(i);
-
-    const kbd = $("kbd");
-    kbd.innerHTML = "";
-
-    keys.forEach(k => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "key";
-      if(k === "00") b.className += " zero";
-      if(k === 0) b.className += " green";
-      b.textContent = String(k);
-      b.addEventListener("click", () => addSpin(k), {passive:true});
-      kbd.appendChild(b);
-    });
+  function setExport(scope){
+    exportScope = scope;
+    setExportButtons();
+    save();
   }
 
-  // Wire UI
-  $("undoBtn").addEventListener("click", undo);
-  $("clearBtn").addEventListener("click", clearAll);
-  $("newSessionBtn").addEventListener("click", newSession);
+  function setExportButtons(){
+    if($("xLast20Btn")) $("xLast20Btn").classList.toggle("primary", exportScope==="last20");
+    if($("xSessionBtn")) $("xSessionBtn").classList.toggle("primary", exportScope==="session");
+    if($("xAllBtn")) $("xAllBtn").classList.toggle("primary", exportScope==="all");
+  }
 
-  $("addManualBtn").addEventListener("click", () => {
-    const raw = $("manualInput").value.trim();
+  function windowValues(){
+    return spins.slice(0, windowN).map(function(x){ return x.n; });
+  }
+
+  function counts(vals){
+    var c = {c1:0,c2:0,c3:0,d1:0,d2:0,d3:0,red:0,black:0,high:0,low:0,even:0,odd:0,gn:0,ho:0,lo:0,m:0,green:0};
+    vals.forEach(function(n){
+      if(isGreen(n)) c.green++;
+      var col = colOf(n); if(col===1)c.c1++; if(col===2)c.c2++; if(col===3)c.c3++;
+      var d = dozenOf(n); if(d===1)c.d1++; if(d===2)c.d2++; if(d===3)c.d3++;
+      if(isRed(n)) c.red++;
+      if(isBlack(n)) c.black++;
+      if(isHigh(n)) c.high++;
+      if(isLow(n)) c.low++;
+      if(isEven(n)) c.even++;
+      if(isOdd(n)) c.odd++;
+      var jb = junkoBucket(n);
+      if(jb==="GN") c.gn++;
+      if(jb==="HO") c.ho++;
+      if(jb==="LO") c.lo++;
+      if(jb==="M") c.m++;
+    });
+    return c;
+  }
+
+  function top3Hot(vals){
+    var countsMap = {};
+    vals.forEach(function(v){
+      if (v==="00" || Number(v)===0) return;
+      var key = String(v);
+      countsMap[key] = (countsMap[key]||0) + 1;
+    });
+    var items = Object.keys(countsMap).map(function(k){ return [k, countsMap[k]]; });
+    items.sort(function(a,b){ return (b[1]-a[1]) || (Number(a[0])-Number(b[0])); });
+    var top = items.slice(0,3);
+    if(top.length===0) return "—";
+    return top.map(function(p){ return p[0] + "×" + p[1]; }).join("  ");
+  }
+
+  function repeatNumberInfo(vals, lookback){
+    if(vals.length<2) return {flag:false, text:"—"};
+    var newest = vals[0];
+    var slice = vals.slice(1, Math.min(vals.length, lookback));
+    for(var i=0;i<slice.length;i++){
+      if(slice[i]===newest) return {flag:true, text:String(newest) + " repeated within " + (i+1) + " spins"};
+    }
+    return {flag:false, text:"—"};
+  }
+
+  function repeatStreetInfo(vals, lookback){
+    if(vals.length<2) return {flag:false, text:"—"};
+    var newest = vals[0];
+    var s0 = streetId(newest);
+    if(!s0) return {flag:false, text:"—"};
+    for(var i=1;i<Math.min(vals.length, lookback); i++){
+      var si = streetId(vals[i]);
+      if(si && si===s0) return {flag:true, text:"Street " + s0 + " repeated within " + i + " spins"};
+    }
+    return {flag:false, text:"—"};
+  }
+
+  function currentRun(vals, pred){
+    var run = 0;
+    for(var i=0;i<vals.length;i++){
+      if(pred(vals[i])) run++;
+      else break;
+    }
+    return run;
+  }
+
+  
+function scoreStrategies(vals){
+  // vals is newest-first numeric keys (0..36 or "00") from windowValues() (size windowN)
+  var w15 = vals.slice(0,15);
+  var w20 = vals.slice(0,20);
+
+  var cts15 = counts(w15);
+  var cts20 = counts(w20);
+
+  var rn = repeatNumberInfo(vals, 5);
+  var rs = repeatStreetInfo(vals, 3);
+
+  // Table state (same concept as your core engine)
+  var tableState = "Flat / Choppy";
+  if(rn.flag || rs.flag){
+    tableState = "Repeat-Heavy";
+  } else {
+    var colMax15 = Math.max(cts15.c1, cts15.c2, cts15.c3);
+    var dozMax15 = Math.max(cts15.d1, cts15.d2, cts15.d3);
+    if(colMax15 >= 7 || dozMax15 >= 7){
+      tableState = "Concentrated";
+    } else {
+      var newest = vals[0];
+      var rbRun = 0, hlRun = 0;
+      if(!isGreen(newest)){
+        var isR = isRed(newest);
+        rbRun = currentRun(vals, function(v){ return !isGreen(v) && (isR ? isRed(v) : isBlack(v)); });
+      }
+      hlRun = currentRun(vals, function(v){ return (isHigh(newest) ? isHigh(v) : isLow(v)); });
+      if(Math.max(rbRun, hlRun) >= 3) tableState = "Streaky";
+    }
+  }
+
+  // DS Cash Power favorability (last-15)
+  var dsp = dsPickByCount(w15);
+  var dsSum = (dsp.d1.mx + dsp.d2.mx + dsp.d3.mx);
+  var dsHas3 = (dsp.d1.mx >= 3) || (dsp.d2.mx >= 3) || (dsp.d3.mx >= 3);
+  var dsFavorable = (dsSum >= 8) && dsHas3;
+
+  
+  // Win 28 (Table Probe) — only suggest when last-20 shows high coverage hit-rate
+  // Coverage = 16 straights (incl 0/00) + Column 2 (no overlap by design).
+  var win28Straight = {0:1,1:1,3:1,7:1,9:1,12:1,13:1,15:1,22:1,24:1,27:1,28:1,30:1,34:1,36:1,99:1}; // 99 = "00"
+  var win28Col2 = {2:1,5:1,8:1,11:1,14:1,17:1,20:1,23:1,26:1,29:1,32:1,35:1};
+  var w28Hits20 = 0;
+  w20.forEach(function(n){
+    if(win28Straight[n] || win28Col2[n]) w28Hits20 += 1;
+  });
+  // If 12+ of last-20 are covered, it's a strong candidate (60%+).
+  if(w20.length>=20 && w28Hits20 >= 12){
+    var baseScore = 82 + (w28Hits20-12)*2;
+    if(baseScore>94) baseScore=94;
+    add("Win 28 (Table Probe)", baseScore, "Coverage hit-rate: "+w28Hits20+"/20 in last-20.", ["probe"]);
+  }
+// Holy Grail proxy favorability: top 2 dozens dominate last-15
+  var dozArr = [cts15.d1, cts15.d2, cts15.d3].sort(function(a,b){return b-a;});
+  var hgFavorable = (dozArr[0] + dozArr[1] >= 12);
+
+  // Hot Quadrant last-15 favorability
+  var qMax = Math.max(cts15.gn, cts15.ho, cts15.lo, cts15.m);
+  var hotQuadFav = (qMax >= 6);
+
+  // Black Anchor proxy
+  var blackFav = (cts20.black >= 10);
+
+  // Columns balance (for FlipDozen/FlipColumn conditions)
+  var dozBalanced = (Math.max(cts15.d1,cts15.d2,cts15.d3) - Math.min(cts15.d1,cts15.d2,cts15.d3) <= 2);
+  var colBalanced = (Math.max(cts15.c1,cts15.c2,cts15.c3) - Math.min(cts15.c1,cts15.c2,cts15.c3) <= 2);
+
+  // Build scored list
+  var plays = [];
+
+  function add(name, score, why, tags){
+    plays.push({name:name, score:score, why:why, tags:tags||[]});
+  }
+
+  // 6 Diamonds
+  if(rn.flag || rs.flag){
+    add("6 Diamonds (Corner Core)", 92, (rn.flag?rn.text:"") + (rs.flag?(" • "+rs.text):""), ["repeat"]);
+  } else if(tableState==="Flat / Choppy"){
+    add("6 Diamonds (Corner Core)", 70, "Choppy mix: use coverage grinder while waiting for a clearer trend.", ["choppy"]);
+  }
+
+  // DS Cash Power
+  if(dsFavorable){
+    add("DS Cash Power", 90, "DS bias: best-sum "+dsSum+" in last-15 (D1 "+dsp.d1.mx+", D2 "+dsp.d2.mx+", D3 "+dsp.d3.mx+").", ["ds"]);
+  }
+
+  // Holy Grail
+  if(hgFavorable){
+    add("Holy Grail (2-dozen)", 88, "Dozen dominance: top2="+(dozArr[0]+dozArr[1])+"/15.", ["dozen"]);
+  }
+
+  // Hot Quadrant last-15
+  if(hotQuadFav){
+    add("Hot Quadrant last-15 (Option A)", 87, "Junko quadrant hot: max="+qMax+"/15.", ["junko"]);
+  }
+
+  // Junko Quadrants (driest/hottest selection)
+  var qMin = Math.min(cts15.gn, cts15.ho, cts15.lo, cts15.m);
+  if(qMax >= 6 || qMin <= 1){
+    add("Junko Quadrants (hot/dry)", 78, (qMax>=6?("Momentum: quadrant hot at "+qMax+"/15."):("Drought: driest quadrant at "+qMin+"/15.")), ["junko"]);
+  }
+
+  // Black Anchor
+  if(blackFav){
+    add("Black Anchor", 72, "Black bias: "+cts20.black+"/20.", ["outside"]);
+  }
+
+  
+  // 50/50 Edge Rider (Red/Black, High/Low, Even/Odd) — only when conditions are strong
+  function attrColor(n){
+    if(n===0 || n==="00" || n===99) return "G";
+    return RED[n] ? "R" : (BLACK[n] ? "B" : "?");
+  }
+  function attrHL(n){
+    if(n===0 || n==="00" || n===99) return "G";
+    if(n>=1 && n<=18) return "L";
+    if(n>=19 && n<=36) return "H";
+    return "?";
+  }
+  function attrEO(n){
+    if(n===0 || n==="00" || n===99) return "G";
+    return (n%2===0) ? "E" : "O";
+  }
+  function longestRun(seq){
+    var best = {val:null, len:0};
+    var curVal=null, curLen=0;
+    for(var i=0;i<seq.length;i++){
+      var v=seq[i];
+      if(v==="G" || v==="?") { curVal=null; curLen=0; continue; }
+      if(v===curVal){ curLen++; } else { curVal=v; curLen=1; }
+      if(curLen>best.len){ best={val:curVal, len:curLen}; }
+    }
+    return best;
+  }
+  function dominance(seq, a, b){
+    var ca=0, cb=0;
+    seq.forEach(function(v){
+      if(v===a) ca++;
+      if(v===b) cb++;
+    });
+    return {a:ca,b:cb};
+  }
+
+  var rbSeq = w20.map(attrColor);
+  var hlSeq = w20.map(attrHL);
+  var eoSeq = w20.map(attrEO);
+
+  var rbRun = longestRun(rbSeq);
+  var hlRun = longestRun(hlSeq);
+  var eoRun = longestRun(eoSeq);
+
+  var rbDom = dominance(rbSeq, "R", "B");
+  var hlDom = dominance(hlSeq, "H", "L");
+  var eoDom = dominance(eoSeq, "E", "O");
+
+  function fiftyScore(run, dom){
+    var lead = Math.max(dom.a, dom.b);
+    var trail = Math.min(dom.a, dom.b);
+    var spread = lead - trail; // out of 20 (greens excluded already by filter)
+    // Require both: a real run AND dominance
+    if(run.len < 3) return {score:0, lead:lead, trail:trail, spread:spread};
+    if(lead < 12) return {score:0, lead:lead, trail:trail, spread:spread};
+    // Score: base 78 + run bonus + dominance bonus (cap at 95)
+    var s = 78 + (run.len-3)*4 + (lead-12)*2 + spread;
+    if(s>95) s=95;
+    return {score:s, lead:lead, trail:trail, spread:spread};
+  }
+
+  var rbS = fiftyScore(rbRun, rbDom);
+  var hlS = fiftyScore(hlRun, hlDom);
+  var eoS = fiftyScore(eoRun, eoDom);
+
+  // pick best 50/50 dimension if any
+  var best50 = {kind:null, score:0, run:null, lead:0, trail:0};
+  if(rbS.score > best50.score){ best50={kind:"Red/Black", score:rbS.score, run:rbRun, lead:rbS.lead, trail:rbS.trail}; }
+  if(hlS.score > best50.score){ best50={kind:"High/Low", score:hlS.score, run:hlS.run || hlRun, lead:hlS.lead, trail:hlS.trail}; }
+  if(eoS.score > best50.score){ best50={kind:"Even/Odd", score:eoS.score, run:eoRun, lead:eoS.lead, trail:eoS.trail}; }
+
+  if(best50.score > 0){
+    var runLabel = best50.kind+" run "+best50.run.len+" (last-20)";
+    var domLabel = "dominance "+best50.lead+"-"+best50.trail+" (last-20)";
+    add("50/50 Edge Rider ("+best50.kind+")", Math.round(best50.score), runLabel+" • "+domLabel, ["outside","fifty"]);
+  }
+
+
+
+  // Moving Streets (Adjacent Fade) — only when streets are NOT repeating (dispersion)
+  var rs5 = repeatStreetInfo(vals, 5);
+  if(!rs5.flag && tableState==="Flat / Choppy"){
+    add("Moving Streets (Adjacent Fade)", 64, "No repeat streets in last-5 + choppy table: fade last streets and bet adjacent streets.", ["street"]);
+  }
+
+  // 2nd Dozen DS Hedge — when 2nd dozen is leading and hedge DS are active
+  function dsHitCount(w, a,b){
+    var c=0;
+    for(var i=0;i<w.length;i++){
+      var n=w[i];
+      if(isGreen(n)) continue;
+      var s = streetId(n);
+      if((a<=s && s<=b)) c++;
+    }
+    return c;
+  }
+  var d2Lead = (cts15.d2 >= 7);
+  var ds10_15 = dsHitCount(w15, 3,4);   // streets 4-5 and 7-9 correspond? (approx) We'll use street indices: 10-12 is street3, 13-15 is street4
+  var ds22_27 = dsHitCount(w15, 7,8);   // 22-24 street7, 25-27 street8
+  var ds16_21 = dsHitCount(w15, 5,6);   // 16-18 street5, 19-21 street6
+  var hedgeHot = (ds10_15>=2) || (ds22_27>=2) || (ds16_21>=2);
+  if(d2Lead && hedgeHot){
+    add("2nd Dozen DS Hedge", 68, "2nd dozen leading ("+cts15.d2+"/15) + hedge double-streets showing repeats.", ["dozen","street"]);
+  }
+
+  // Palace — repeat-heavy grid coverage set
+  if(tableState==="Repeat-Heavy"){
+    add("Palace", 60, "Repeat signals ON (number/street repeats). Structured inside coverage can grind these phases.", ["inside"]);
+  }
+
+// FlipDozen Switch Option A (balanced-only)
+  if(dozBalanced){
+    add("FlipDozen Switch (A: dozens balanced-only)", 62, "Dozens balanced (spread ≤2 in last-15).", ["dozen"]);
+  }
+
+  // Fallback
+  if(plays.length===0){
+    add("Sit out", 1, "No clear edge: log more spins until a repeat, bias, or streak appears.", ["observe"]);
+  }
+
+  // Sort and take top 3
+  plays.sort(function(a,b){ return b.score - a.score; });
+  var top = plays.slice(0,3);
+
+  // Secondary overlay suggestion: choose a second play if it is strong and in a different "tag family"
+  var primary = top[0];
+  var secondary = null;
+  for(var i=1;i<top.length;i++){
+    if(top[i].score >= 80){
+      // avoid same family
+      var overlap = false;
+      (primary.tags||[]).forEach(function(t){
+        if((top[i].tags||[]).indexOf(t)>=0) overlap = true;
+      });
+      if(!overlap){
+        secondary = top[i];
+        break;
+      }
+    }
+  }
+
+  return {state:tableState, plays:top, primary:primary, secondary:secondary};
+}
+
+function suggest(vals){
+  // Backwards-compatible wrapper for existing UI
+  var out = scoreStrategies(vals);
+  return {state:out.state, play:out.primary.name, why:out.primary.why};
+}
+function spinsForExport(){
+    if(exportScope==="all") return spins;
+    if(exportScope==="session") return spins.filter(function(x){ return x.s===sessionId; });
+    return spins.slice(0,20);
+  }
+
+  function ymd(t){
+    var d = new Date(t);
+    var yyyy = String(d.getFullYear());
+    var mm = String(d.getMonth()+1); if(mm.length<2) mm = "0"+mm;
+    var dd = String(d.getDate()); if(dd.length<2) dd = "0"+dd;
+    return yyyy + "-" + mm + "-" + dd;
+  }
+  function hms(t){
+    var d = new Date(t);
+    var hh = String(d.getHours()); if(hh.length<2) hh = "0"+hh;
+    var mi = String(d.getMinutes()); if(mi.length<2) mi = "0"+mi;
+    var ss = String(d.getSeconds()); if(ss.length<2) ss = "0"+ss;
+    return hh + ":" + mi + ":" + ss;
+  }
+
+  function toCsv(){
+    var casino = (casinoInput && casinoInput.value) ? casinoInput.value : "";
+    casino = String(casino).split('"').join('""');
+    var lines = ["number,casino,date,time,session_id"];
+    var arr = spinsForExport();
+    for(var i=0;i<arr.length;i++){
+      var x = arr[i];
+      var n = (x.n === "00") ? "00" : String(x.n);
+      lines.push(n + ',"' + casino + '",' + ymd(x.t) + "," + hms(x.t) + "," + x.s);
+    }
+    return lines.join("\n");
+  }
+
+  function copyCsv(){
+    var csv = toCsv();
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(csv).then(function(){ alert("CSV copied."); }).catch(function(){
+        lastList.value = csv; lastList.focus(); lastList.select();
+        alert("Clipboard blocked. CSV placed in the box; copy manually.");
+      });
+    } else {
+      lastList.value = csv; lastList.focus(); lastList.select();
+      alert("Clipboard unavailable. CSV placed in the box; copy manually.");
+    }
+  }
+
+  function downloadCsv(){
+    var blob = new Blob([toCsv()], {type:"text/csv;charset=utf-8"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = (exportScope==="all") ? "roulette_spins_ALL.csv" : (exportScope==="session" ? "roulette_spins_SESSION.csv" : "roulette_spins_LAST20.csv");
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+  }
+
+  function render(){
+    winLabel.textContent = "Last " + windowN;
+    spinCount.textContent = String(spins.length);
+    sessionCount.textContent = String(spins.filter(function(x){ return x.s===sessionId; }).length);
+
+    var recent = windowValues();
+    greenCount.textContent = String(recent.filter(isGreen).length);
+
+    if (hot3El) hot3El.textContent = top3Hot(recent);
+    if (repeatNum5El) repeatNum5El.textContent = repeatNumberInfo(recent, 5).text;
+    if (repeatStreet3El) repeatStreet3El.textContent = repeatStreetInfo(recent, 3).text;
+
+    var cts = counts(recent);
+    cols.textContent = cts.c1 + " / " + cts.c2 + " / " + cts.c3;
+    doz.textContent  = cts.d1 + " / " + cts.d2 + " / " + cts.d3;
+
+    if(ds){
+      var dsc = dsCounts(recent);
+      ds.textContent = "D1 "+dsc.d1[0]+"/"+dsc.d1[1]+"/"+dsc.d1[2] + " | D2 "+dsc.d2[0]+"/"+dsc.d2[1]+"/"+dsc.d2[2] + " | D3 "+dsc.d3[0]+"/"+dsc.d3[1]+"/"+dsc.d3[2];
+    }
+    rb.textContent   = cts.red + " / " + cts.black;
+    hl.textContent   = cts.high + " / " + cts.low;
+    eo.textContent   = cts.even + " / " + cts.odd;
+    junko.textContent= "GN " + cts.gn + " | HO " + cts.ho + " | LO " + cts.lo + " | M " + cts.m;
+
+    
+    var scored = scoreStrategies(recent);
+    var s = {play:scored.primary.name, why:scored.primary.why, state:scored.state};
+
+    recommend.textContent = s.play;
+    reason.textContent = s.why || "—";
+    state.textContent = s.state;
+
+    // Top strategies list
+    if(topPlays){
+      topPlays.innerHTML = "";
+      scored.plays.forEach(function(p, i){
+        var div = document.createElement("div");
+        div.className = "playcard";
+        var sec = (scored.secondary && p.name===scored.secondary.name) ? " (overlay)" : "";
+        div.innerHTML = '<div class="playhdr"><div><div style="font-weight:800">'+(i+1)+'. '+p.name+sec+'</div><div class="small">'+escapeHtml(p.why||"—")+'</div></div><div class="pill">Score '+p.score+'</div></div><div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn mini" data-act="'+escapeHtml(p.name)+'">Set active</button><button class="btn mini" data-exp="'+escapeHtml(p.name)+'">Explain</button></div>';
+        topPlays.appendChild(div);
+      });
+      // wire buttons
+      Array.prototype.slice.call(topPlays.querySelectorAll("button")).forEach(function(b){
+        if(b.dataset && b.dataset.act){
+          b.onclick = function(){ setActive(b.dataset.act); render(); };
+        }
+        if(b.dataset && b.dataset.exp){
+          b.onclick = function(){ showExplain(b.dataset.exp); };
+        }
+      });
+    }
+
+    // Explain button (primary)
+    if(explainBtn){
+      if(STRATEGY_DETAILS[s.play] && s.play !== "Sit out"){
+        explainBtn.style.display = "inline-block";
+        explainBtn.onclick = function(){ showExplain(s.play); };
+      }else{
+        explainBtn.style.display = "none";
+        explainBtn.onclick = null;
+      }
+    }
+
+    // Trend change alert logic (simple, casino-friendly)
+    // If you have an active strategy, alert when it is no longer in the top list OR its score drops below 80 for 2 consecutive updates.
+    if(activeStrategy){
+      // If Win 28 is active, apply early-session probe rules (first 10 bet-spins).
+      if(activeStrategy.indexOf("Win 28")===0){
+        var since = spins.slice(0, Math.max(0, spins.length - activeStartLen)); // newest-first array; we want spins since activation
+        // spins[] is newest-first in this app; take first N since activation then reverse to chronological
+        var probe = since.slice(0,10).slice().reverse();
+        var w=0,l=0;
+        probe.forEach(function(x){ if(win28IsWin((x.n==="00")?99:Number(x.n))) w++; else l++; });
+        // Only evaluate once you have at least 6 spins post-activation (avoid noise).
+        if(probe.length>=6){
+          // If 3 losses before reaching 2 wins within first 10 spins => recommend switch immediately.
+          if(l>=3 && w<2){
+            alertBox.style.display = "block";
+            var nextP = scored.primary ? scored.primary.name : "Sit out";
+            alertText.textContent = "Win 28 probe looks hostile (first "+probe.length+" spins: "+w+"W/"+l+"L). Switch now to: "+nextP+".";
+          }
+          // If you get 2+ wins within first 10 spins => keep playing; suppress badCount escalation.
+          if(w>=2){
+            badCount = 0;
+          }
+        }
+      }
+
+      var activeObj = null;
+      scored.plays.forEach(function(p){ if(p.name===activeStrategy) activeObj=p; });
+      
+      // Win 28 probe downgrade: if 3 losses before 2 wins in first 10 spins, treat as not OK even if scored.
+      if(activeStrategy.indexOf("Win 28")===0){
+        var since2 = spins.slice(0, Math.max(0, spins.length - activeStartLen));
+        var probe2 = since2.slice(0,10).slice().reverse();
+        var w2=0,l2=0;
+        probe2.forEach(function(x){ if(win28IsWin((x.n==="00")?99:Number(x.n))) w2++; else l2++; });
+        if(probe2.length>=6 && l2>=3 && w2<2){
+          activeObj = null;
+        }
+      }
+var activeOk = !!activeObj && activeObj.score >= 80;
+      if(!activeOk){
+        badCount += 1;
+      }else{
+        badCount = 0;
+      }
+
+      if(badCount >= 2){
+        alertBox.style.display = "block";
+        var next = scored.primary ? scored.primary.name : "Sit out";
+        alertText.textContent = "Active strategy looks unfavourable now: " + activeStrategy + ". Consider switching to: " + next + ".";
+      }else{
+        alertBox.style.display = "none";
+      }
+    }else{
+      alertBox.style.display = "none";
+    }
+
+    if(setActiveBtn){
+      setActiveBtn.onclick = function(){ setActive(s.play); render(); };
+    }
+    if(clearActiveBtn){
+      clearActiveBtn.onclick = function(){ setActive(""); render(); };
+    }
+
+    state2.textContent = "Window: last " + windowN + (activeStrategy ? (" • Active: " + activeStrategy) : "");
+
+    lastList.value = spins.slice(0,20).map(function(x){ return (x.n==="00") ? "00" : String(x.n); }).join(", ");
+;
+  }
+  if ($("undoBtn")) $("undoBtn").addEventListener("click", undo);
+  if ($("clearBtn")) $("clearBtn").addEventListener("click", clearAll);
+  if ($("use15Btn")) $("use15Btn").addEventListener("click", function(){ windowN=15; save(); render(); });
+  if ($("use10Btn")) $("use10Btn").addEventListener("click", function(){ windowN=10; save(); render(); });
+  if ($("use20Btn")) $("use20Btn").addEventListener("click", function(){ windowN=20; save(); render(); });
+  if ($("newSessionBtn")) $("newSessionBtn").addEventListener("click", newSession);
+  if ($("xLast20Btn")) $("xLast20Btn").addEventListener("click", function(){ setExport("last20"); });
+  if ($("xSessionBtn")) $("xSessionBtn").addEventListener("click", function(){ setExport("session"); });
+  if ($("xAllBtn")) $("xAllBtn").addEventListener("click", function(){ setExport("all"); });
+
+  if (casinoInput) casinoInput.addEventListener("input", function(){ save(); });
+  if ($("copyCsvBtn")) $("copyCsvBtn").addEventListener("click", copyCsv);
+  if ($("downloadCsvBtn")) $("downloadCsvBtn").addEventListener("click", downloadCsv);
+  if ($("addManualBtn")) $("addManualBtn").addEventListener("click", function(){
+    var raw = manualInput.value.trim();
     if(!raw) return;
-    if(raw === "00") addSpin("00");
-    else if(/^[0-9]+$/.test(raw)) addSpin(Number(raw));
-    $("manualInput").value = "";
+    if (raw === "00" || raw === "'00") addSpin("00");
+    else if (/^[0-9]+$/.test(raw)) addSpin(Number(raw));
+    manualInput.value = "";
   });
 
-  $("manualInput").addEventListener("keydown", (e) => {
+  manualInput.addEventListener("keydown", function(e){
     if(e.key === "Enter"){
       e.preventDefault();
       $("addManualBtn").click();
     }
   });
+  if ($("helpBtn")) $("helpBtn").addEventListener("click", function(){ $("help").classList.toggle("open"); });
+  if ($("jumpBtn")) $("jumpBtn").addEventListener("click", function(){ $("keypadAnchor").scrollIntoView({behavior:"smooth", block:"start"}); });
 
-  // Init
-  buildKeypad();
+
+  // -----------------------------
+  // CSV import (append + dedupe)
+  // Expected columns: number,casino,date,time,session_id
+  // -----------------------------
+  function parseCsvLine(line){
+    var out = [];
+    var i = 0, cur = "", inQ = false;
+    while(i < line.length){
+      var ch = line.charAt(i);
+      if(inQ){
+        if(ch === '"'){
+          if(i+1 < line.length && line.charAt(i+1) === '"'){ cur += '"'; i += 2; continue; }
+          inQ = false; i++; continue;
+        } else {
+          cur += ch; i++; continue;
+        }
+      } else {
+        if(ch === '"'){ inQ = true; i++; continue; }
+        if(ch === ','){ out.push(cur); cur = ""; i++; continue; }
+        cur += ch; i++; continue;
+      }
+    }
+    out.push(cur);
+    return out;
+  }
+
+  function parseNumberCell(cell){
+    var t = String(cell || "").trim();
+    if(t === "00") return "00";
+    var n = Number(t);
+    if(!isFinite(n)) return null;
+    if(n === 0) return 0;
+    if(n >= 1 && n <= 36) return n;
+    return null;
+  }
+
+  function parseTimestamp(dateStr, timeStr){
+    var ds = String(dateStr||"").trim();
+    var ts = String(timeStr||"").trim();
+    var iso = ds + "T" + ts;
+    var ms = Date.parse(iso);
+    if(isFinite(ms)) return ms;
+    var p = ds.split("-");
+    var q = ts.split(":");
+    if(p.length===3 && q.length>=2){
+      var y = Number(p[0]), m = Number(p[1])-1, d = Number(p[2]);
+      var hh = Number(q[0]), mi = Number(q[1]), ss = Number(q[2]||0);
+      return new Date(y,m,d,hh,mi,ss).getTime();
+    }
+    return Date.now();
+  }
+
+  function importCsvText(text){
+    var raw = String(text||"").trim();
+    if(!raw) return {added:0, skipped:0, msg:"Nothing to import."};
+
+    var lines = raw.split(/\r?\n/).filter(function(x){ return String(x).trim().length>0; });
+    if(lines.length < 2) return {added:0, skipped:0, msg:"CSV needs a header + at least 1 row."};
+
+    var startIdx = 0;
+    var h = lines[0].toLowerCase();
+    if(h.indexOf("number") !== -1 && h.indexOf("session") !== -1){
+      startIdx = 1;
+    }
+
+    var seen = {};
+    for(var i=0;i<spins.length;i++){
+      var x = spins[i];
+      var key = String(x.n) + "|" + String(x.t) + "|" + String(x.s);
+      seen[key] = 1;
+    }
+
+    var added = 0, skipped = 0;
+    var casinoFromFile = null;
+
+    for(var r=startIdx; r<lines.length; r++){
+      var cols = parseCsvLine(lines[r]);
+      if(cols.length < 5){ skipped++; continue; }
+      var n = parseNumberCell(cols[0]);
+      if(n===null){ skipped++; continue; }
+      var casino = String(cols[1]||"").trim();
+      if(casino && casinoFromFile===null) casinoFromFile = casino;
+      var t = parseTimestamp(cols[2], cols[3]);
+      var s = Number(String(cols[4]||"").trim());
+      if(!isFinite(s)) s = 1;
+
+      var obj = { n: n, t: t, s: s };
+      var key2 = String(obj.n) + "|" + String(obj.t) + "|" + String(obj.s);
+      if(seen[key2]){ skipped++; continue; }
+      spins.push(obj);
+      seen[key2] = 1;
+      added++;
+    }
+
+    spins.sort(function(a,b){ return (b.t - a.t); });
+
+    if(casinoInput && (!casinoInput.value || !casinoInput.value.trim()) && casinoFromFile){
+      casinoInput.value = casinoFromFile;
+    }
+
+    save();
+    render();
+    return {added:added, skipped:skipped, msg:"Imported " + added + " spins (skipped " + skipped + ")."};
+  }
+
+  if ($("importBtn")) {
+  if ($("importBtn")) $("importBtn").addEventListener("click", function(){
+      var res = importCsvText($("importArea").value);
+      $("importStatus").textContent = res.msg;
+    });
+  }
+  if ($("clearImportBtn")) {
+  if ($("clearImportBtn")) $("clearImportBtn").addEventListener("click", function(){
+      $("importArea").value = "";
+      $("importStatus").textContent = "";
+    });
+  }
+
   load();
-  render();
+  setExportButtons();
+
+  // ---------------- Wheel View (Last 20) ----------------
+  var WHEEL = [0,28,9,26,30,11,7,20,32,17,5,22,34,15,3,24,36,13,1,99,27,10,25,29,12,8,19,31,18,6,21,33,16,4,23,35,14,2]; // 99 = 00
+
+  function numLabel(n){ return (n===99) ? "00" : String(n); }
+
+  function pocketColor(n){
+    if(n===0 || n===99) return "rgba(80, 220, 160, 0.95)"; // green
+    return (RED[n] ? "rgba(255, 92, 92, 0.95)" : "rgba(70, 140, 255, 0.95)"); // red / black-blue
+  }
+
+  function drawWheelHistogram(lastN){
+    lastN = lastN || 20;
+    var canvas = $("wheelCanvas");
+    if(!canvas) return;
+    var ctx = canvas.getContext("2d");
+
+    // HiDPI crispness
+    var dpr = window.devicePixelRatio || 1;
+    var cssW = canvas.clientWidth || 420;
+    var size = Math.min(cssW, 520);
+    canvas.style.height = size + "px";
+    canvas.style.width  = size + "px";
+    canvas.width  = Math.floor(size * dpr);
+    canvas.height = Math.floor(size * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+
+    ctx.clearRect(0,0,size,size);
+
+    var cx = size/2, cy = size/2;
+    var outerR = (size/2) - 16;
+    var ringR1 = outerR - 46;
+    var innerR = 54;
+    var barLen = 10;     // length of each stacked segment
+    var barGap = 2;      // gap between segments
+    var step = (Math.PI*2)/WHEEL.length;
+    var start = -Math.PI/2;
+
+    // count last N spins (spins is newest-first)
+    var slice = spins.slice(0, lastN);
+    var counts = {};
+    for(var i=0;i<slice.length;i++){
+      var n = slice[i].n;
+      counts[n] = (counts[n]||0) + 1;
+    }
+    var maxC = 0;
+    WHEEL.forEach(function(n){ maxC = Math.max(maxC, counts[n]||0); });
+
+    // background rings
+    ctx.beginPath();
+    ctx.arc(cx,cy,outerR,0,Math.PI*2);
+    ctx.fillStyle="rgba(255,255,255,0.04)";
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(cx,cy,ringR1,0,Math.PI*2);
+    ctx.fillStyle="rgba(0,0,0,0.18)";
+    ctx.fill();
+
+    // spokes + pockets + labels
+    for(var k=0;k<WHEEL.length;k++){
+      var a0 = start + k*step;
+      var a1 = a0 + step;
+
+      // pocket wedge
+      ctx.beginPath();
+      ctx.moveTo(cx + ringR1*Math.cos(a0), cy + ringR1*Math.sin(a0));
+      ctx.arc(cx,cy,ringR1,a0,a1);
+      ctx.lineTo(cx + outerR*Math.cos(a1), cy + outerR*Math.sin(a1));
+      ctx.arc(cx,cy,outerR,a1,a0,true);
+      ctx.closePath();
+
+      ctx.fillStyle="rgba(255,255,255,0.02)";
+      ctx.fill();
+
+      ctx.strokeStyle="rgba(255,255,255,0.06)";
+      ctx.lineWidth=1;
+      ctx.stroke();
+
+      // radial bar stack (from innerR outward)
+      var n = WHEEL[k];
+      var c = counts[n]||0;
+      if(c>0){
+        var aw = step*0.72;
+        var mid = (a0+a1)/2;
+        for(var s=0;s<c;s++){
+          var r1 = innerR + s*(barLen+barGap);
+          var r2 = r1 + barLen;
+          ctx.beginPath();
+          ctx.moveTo(cx + r1*Math.cos(mid-aw/2), cy + r1*Math.sin(mid-aw/2));
+          ctx.arc(cx,cy,r1, mid-aw/2, mid+aw/2);
+          ctx.lineTo(cx + r2*Math.cos(mid+aw/2), cy + r2*Math.sin(mid+aw/2));
+          ctx.arc(cx,cy,r2, mid+aw/2, mid-aw/2, true);
+          ctx.closePath();
+
+          ctx.fillStyle = pocketColor(n);
+          ctx.globalAlpha = 0.25 + 0.75*( (s+1)/Math.max(1,maxC) );
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      // label
+      var midA = (a0+a1)/2;
+      var tx = cx + (outerR-18)*Math.cos(midA);
+      var ty = cy + (outerR-18)*Math.sin(midA);
+      ctx.save();
+      ctx.translate(tx,ty);
+      ctx.rotate(midA + Math.PI/2);
+      ctx.textAlign="center";
+      ctx.textBaseline="middle";
+      ctx.font="12px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial";
+      ctx.fillStyle="rgba(255,255,255,0.85)";
+      ctx.fillText(numLabel(n), 0, 0);
+      ctx.restore();
+
+      // count badge (small)
+      if(c>0){
+        var bx = cx + (ringR1+18)*Math.cos(midA);
+        var by = cy + (ringR1+18)*Math.sin(midA);
+        ctx.beginPath();
+        ctx.arc(bx,by,10,0,Math.PI*2);
+        ctx.fillStyle="rgba(0,0,0,0.35)";
+        ctx.fill();
+        ctx.strokeStyle="rgba(255,255,255,0.12)";
+        ctx.stroke();
+
+        ctx.font="12px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial";
+        ctx.fillStyle="rgba(255,255,255,0.95)";
+        ctx.textAlign="center";
+        ctx.textBaseline="middle";
+        ctx.fillText(String(c), bx, by);
+      }
+    }
+
+    // center label
+    ctx.beginPath();
+    ctx.arc(cx,cy,innerR-14,0,Math.PI*2);
+    ctx.fillStyle="rgba(0,0,0,0.30)";
+    ctx.fill();
+    ctx.strokeStyle="rgba(255,255,255,0.10)";
+    ctx.stroke();
+
+    ctx.fillStyle="rgba(255,255,255,0.90)";
+    ctx.font="14px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial";
+    ctx.textAlign="center";
+    ctx.textBaseline="middle";
+    ctx.fillText("LAST " + lastN, cx, cy-10);
+    ctx.font="12px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial";
+    ctx.fillStyle="rgba(255,255,255,0.70)";
+    ctx.fillText("hit histogram", cx, cy+10);
+  }
+
+  function openWheelModal(){
+    $("wheelModal").style.display = "flex";
+    drawWheelHistogram(20);
+  }
+  function closeWheelModal(){
+    $("wheelModal").style.display = "none";
+  }
+  if ($("wheelViewBtn")) $("wheelViewBtn").addEventListener("click", openWheelModal);
+  if ($("wheelCloseBtn")) $("wheelCloseBtn").addEventListener("click", closeWheelModal);
+  if ($("wheelModal")) $("wheelModal").addEventListener("click", function(e){
+    if(e.target && e.target.id === "wheelModal") closeWheelModal();
+  });
+  window.addEventListener("resize", function(){
+    if($("wheelModal").style.display !== "none") drawWheelHistogram(20);
+  });
+
+  buildKeypad();
+  
+  // Explain modal handlers
+  if($("expClose")) $("expClose").addEventListener("click", closeExplainModal);
+  if($("expBackdrop")) $("expBackdrop").addEventListener("click", closeExplainModal);
+render();
 })();
+
+  // Win 28 risk mode selector (UI only; used for guidance/explanations)
+  (function initWin28RiskMode(){
+    const sel = document.getElementById('win28RiskMode');
+    if(!sel) return;
+    const key = 'win28RiskMode';
+    const saved = localStorage.getItem(key);
+    if(saved) sel.value = saved;
+    sel.addEventListener('change', () => {
+      localStorage.setItem(key, sel.value);
+      toast('Win 28 mode: ' + (sel.value==='defensive' ? 'Defensive (+100 / -260)' : 'Aggressive (+100 / -545)'));
+    });
+  })();
+
 </script>
+
+  <!-- Explain modal -->
+  <div id="expModal" style="display:none;position:fixed;inset:0;z-index:9999;">
+    <div id="expBackdrop" style="position:absolute;inset:0;background:rgba(0,0,0,.55)"></div>
+    <div style="position:relative;max-width:680px;margin:8vh auto;background:#111827;color:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.45);padding:16px 16px 12px 16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <div id="expTitle" style="font-weight:800;font-size:16px;line-height:1.2">Strategy details</div>
+        <button id="expClose" class="btn small" style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);">Close</button>
+      </div>
+      <pre id="expBody" style="margin:12px 0 0 0;white-space:pre-wrap;word-wrap:break-word;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;font-size:12px;line-height:1.35;background:rgba(255,255,255,.06);padding:12px;border-radius:12px;max-height:58vh;overflow:auto;"></pre>
+    </div>
+  </div>
+
 </body>
 </html>
