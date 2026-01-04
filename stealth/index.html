@@ -3,8 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<!-- STEALTH TEXT MODE — v0.4 (compact status + new trend command) -->
-<title>Tracker • Text Mode • Test</title>
+<!-- STEALTH TEXT MODE — v0.6 (send fix + compact status/trend + how-to explain)<title>Tracker • Text Mode • Test</title>
 <style>
   :root{color-scheme:dark; --bg:#0b1220; --card:#0f1a2e; --muted:#94a3b8; --txt:#e5e7eb; --me:#2563eb; --them:#111827; --border:#1f2a44;}
   *{box-sizing:border-box}
@@ -38,7 +37,7 @@
     <div class="avatar"></div>
     <div>
       <div class="title">Scott</div>
-      <div class="subtitle">Texting view • STEALTH TEXT MODE — v0.4 (compact status + new trend command)</div>
+      <div class="subtitle">Texting view • STEALTH TEXT MODE — v0.6 (send fix + compact status/trend + how-to explain)</div>
     </div>
   </div>
 
@@ -139,7 +138,7 @@
   const $ = (id) => document.getElementById(id);
   const chat = $("chat");
   const msg = $("msg");
-  const sendBtn = $("send");
+  const sendBtn = $("sendBtn") || $("send");
 
   let spins = []; // newest-first: {n,t}
   let historyLoaded = false;
@@ -813,7 +812,7 @@ const nums = parseNumbers(text);
     msg.style.height = "42px";
     msg.style.height = Math.min(msg.scrollHeight, 140) + "px";
   });
-  sendBtn.addEventListener("click", onSend);
+  if(sendBtn) sendBtn.addEventListener("click", onSend);
   msg.addEventListener("keydown", (e) => {
     if(e.key === "Enter" && !e.shiftKey){
       e.preventDefault();
