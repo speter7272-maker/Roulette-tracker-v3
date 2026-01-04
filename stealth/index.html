@@ -456,65 +456,35 @@
     return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   }
 
+  
   function botReply(){
     const vals = spins.map(x => x.n); // newest-first
     if(vals.length < 10){
-      addBotBubble(`<b>Need more spins</b>\nLog at least 10 spins for stable reads. Spins logged: ${vals.length}.`);
+      addBotBubble(
+        `<b>Need more spins</b><br>` +
+        `Log at least 10 spins for stable reads. Spins logged: ${vals.length}.`
+      );
       return;
     }
+
     const scored = scoreAll(vals);
     const rec = scored.recommended;
 
-    const header = `<b>Recommended</b>\n<b>${rec.mode}</b> — ${escapeHtml(rec.name)} <span class="pill">${rec.mode} • ${rec.score}</span>\n${escapeHtml(rec.why)}\n\n${scored.modeReason}`;
-    const body = formatTrend(scored.metrics);
-    const top3 = formatTop3(scored.plays);
+    // Build message sections (HTML-friendly)
+    const header =
+      `<div class="k">Recommended</div>` +
+      `<div class="big">${escapeHtml(rec.mode)} — ${escapeHtml(rec.name)}</div>` +
+      `<div class="pill">${escapeHtml(rec.mode)} • ${rec.score}</div>` +
+      `<div class="small">${escapeHtml(rec.why)}</div>` +
+      (scored.modeReason ? `<div class="small" style="margin-top:8px">${escapeHtml(scored.modeReason)}</div>` : ``);
 
-    addBotBubble(`${header}\n\n${escapeHtml(body)}\n\n${top3}`.replace(/\n/g,"<br><b>offline</b><br>• Offline reminders + backup tips (cruise/airplane mode)<br>"));
+    const body = formatTrend(scored.metrics).replace(/\n/g, "<br>");
+    const top3 = formatTop3(scored.plays).replace(/\n/g, "<br>");
+
+    addBotBubble(`${header}<div style="height:10px"></div>${body}<div style="height:10px"></div>${top3}`);
   }
 
-  function save(){
-    try{
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        spins, historyLoaded
-      }));
-    }catch(_){}
-  }
-
-  function load(){
-    try{
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if(!raw) return;
-      const obj = JSON.parse(raw);
-      if(Array.isArray(obj.spins)){
-        spins = obj.spins.map(x => {
-          const n = numToKey(x.n);
-          const t = Number(x.t)||Date.now();
-          return (n===null)?null:{n,t};
-        }).filter(Boolean);
-      }
-      historyLoaded = !!obj.historyLoaded;
-    }catch(_){}
-  }
-
-  function toCsv(){
-    const lines = ["number,date,time"];
-    const arr = spins.slice().reverse();
-    for(const x of arr){
-      const d = new Date(x.t);
-      const yyyy = String(d.getFullYear());
-      const mm = String(d.getMonth()+1).padStart(2,'0');
-      const dd = String(d.getDate()).padStart(2,'0');
-      const hh = String(d.getHours()).padStart(2,'0');
-      const mi = String(d.getMinutes()).padStart(2,'0');
-      const ss = String(d.getSeconds()).padStart(2,'0');
-      const n = (x.n==="00") ? "00" : String(x.n);
-      lines.push(`${n},${yyyy}-${mm}-${dd},${hh}:${mi}:${ss}`);
-    }
-    return lines.join("\n");
-  }
-
-  
-  function wheelHistogramText(lastN=20){
+function wheelHistogramText(lastN=20){
     // American wheel order (clockwise)
     const WHEEL = [0,28,9,26,30,11,7,20,32,17,5,22,34,15,3,24,36,13,1,"00",27,10,25,29,12,8,19,31,18,6,21,33,16,4,23,35,14,2];
     const slice = spins.slice(0, lastN); // newest-first objects {n,t}
