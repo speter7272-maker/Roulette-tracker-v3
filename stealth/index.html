@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<!-- STEALTH TEXT MODE — v0.3 (status fix + offline cleanup) -->
+<!-- STEALTH TEXT MODE — v0.4 (compact status + new trend command) -->
 <title>Tracker • Text Mode • Test</title>
 <style>
   :root{color-scheme:dark; --bg:#0b1220; --card:#0f1a2e; --muted:#94a3b8; --txt:#e5e7eb; --me:#2563eb; --them:#111827; --border:#1f2a44;}
@@ -38,7 +38,7 @@
     <div class="avatar"></div>
     <div>
       <div class="title">Scott</div>
-      <div class="subtitle">Texting view • STEALTH TEXT MODE — v0.3 (status fix + offline cleanup)</div>
+      <div class="subtitle">Texting view • STEALTH TEXT MODE — v0.4 (compact status + new trend command)</div>
     </div>
   </div>
 
@@ -47,7 +47,7 @@
   <div class="hint" id="hint">
     Paste history as comma-separated numbers (example: <b>0,00,34,23,5,17</b>) then tap <b>Send</b>.
     After that, you can send a single new spin (e.g., <b>32</b>) or a short comma list.
-    Commands: <b>clear</b> (wipe), <b>export</b> (copy CSV), <b>wheel</b> (wheel histogram), <b>offline</b> (offline tips).
+    Commands: <b>status</b>, <b>trend</b>, <b>explain</b>, <b>wheel</b>, <b>export</b>, <b>offline</b>, <b>clear</b>.
   </div>
 
   <div class="inputbar">
@@ -66,6 +66,75 @@
   const HO = new Set([24,25,26,29,30,33,34,35,36]);
   const LO = new Set([3,4,8,11,12,15,16,22,23]);
   const MID= new Set([5,6,7,17,18,19,20,21,31,32]);
+
+  // HOW-TO playbook (Explain shows HOW, not trigger reasons)
+  const PLAYBOOK = {
+    "COMP — 6 Diamonds + 0/00 (Primary)":
+`How to play (COMP — 6 Diamonds + 0/00)
+• Bet 6 fixed corners (1u each): 1/2/3/5, 7/8/9/11, 13/14/15/17, 19/20/21/23, 25/26/27/29, 31/32/33/35
+• Add 0/00 split: 1u on 0/00 (or 0-00 split if available).
+• Progression: capped at Step 1 (per your COMP rules). Avoid escalations.
+• Reset: after a recovery / when back near session high.`,
+    "COMP — Point Pusher":
+`How to play (COMP — Point Pusher)
+• Flat: 1u each on your standard Point Pusher layout (column + corners + basket).
+• Objective: smooth ADT, survive choppy tables.
+• Reset: stay flat; do not ladder.`,
+    "COMP — Junko Dry (Flat)":
+`How to play (COMP — Junko Dry)
+• Identify the driest Junko quadrant in the last-15.
+• Flat-bet outside the driest quadrant using a conservative structure.
+• Objective: low volatility / slow bleed while waiting for structure.`,
+    "COMP — DS Cash Power (Base Only)":
+`How to play (COMP — DS Cash Power (Base Only))
+• Flat only (no ladder): 1u on the hottest DS bucket(s) indicated.
+• Objective: engagement without drawdown risk.
+• Exit: if DS dominance fades.`,
+    "COMP — Minimum Bet Placeholder":
+`How to play (COMP — Minimum Bet Placeholder)
+• Minimum-stake only.
+• Use during extreme noise / green-heavy / near stop-loss.
+• Goal: stay in action without risking a ladder.`,
+
+    "CASH — Slow & Steady (Structural Bias)":
+`How to play (CASH — Slow & Steady)
+• Trigger: extreme Dozen or Column concentration.
+• Bets: choose the dominant Dozen/Column; keep bet cap ≤ 4u per bet.
+• Session: milestone approach (slow & steady). Exit on structure break immediately.`,
+    "CASH — DS Cash Power (Street Cluster)":
+`How to play (CASH — DS Cash Power)
+• Focus: strongest double-street bucket(s) in the last-15.
+• Progression: use your DSCP cash ladder rules; abort if DS score weakens.
+• Exit: immediate on reassessment downgrade / hostile start.`,
+    "CASH — Gold Mine (Even-Money Compression)":
+`How to play (CASH — Gold Mine)
+• Play even-money side with dominance (High/Low compression).
+• Option A (no hedge).
+• Exit as soon as dominance drops.`,
+    "CASH — Follow-the-Leader 50/50":
+`How to play (CASH — Follow-the-Leader 50/50)
+• Enter when run ≥ 3 and dominance is strong.
+• Bet the leader side; exit on first streak break.`,
+    "CASH — Junko Hot (Quadrant Momentum)":
+`How to play (CASH — Junko Hot)
+• Flat only.
+• Bet inside the hottest Junko quadrant.
+• Short leash: 10–15 spins, exit if momentum drops.`,
+    "CASH — Win 28 (Coverage Probe)":
+`How to play (CASH — Win 28)
+• Flat only; diagnostic cash shot.
+• Use as a short probe when coverage metric is favorable.
+• Abort early on hostile start.`,
+    "CASH — Anti-Last-Dozen (Mean Reversion)":
+`How to play (CASH — Anti-Last-Dozen)
+• Mean reversion: fade the last-dominant dozen during rotation/flat tables.
+• Conservative ladder; hard abort on ladder failure.`,
+    "CASH — Disappearing Streets (Anti-Repeat)":
+`How to play (CASH — Disappearing Streets)
+• Remove winners: track streets that have hit and avoid repeating them.
+• Abort immediately if repeats emerge.`
+  };
+
 
   const $ = (id) => document.getElementById(id);
   const chat = $("chat");
@@ -457,8 +526,7 @@
     return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   }
 
-  
-  function botReply(){
+  function botReplyCompact(){
     const vals = spins.map(x => x.n); // newest-first
     if(vals.length < 10){
       addBotBubble(
@@ -467,6 +535,51 @@
       );
       return;
     }
+
+    const scored = scoreAll(vals);
+    const rec = scored.recommended;
+    const top3 = scored.plays.slice(0,3);
+
+    const header =
+      `<div class="k">Recommended</div>` +
+      `<div class="big">${escapeHtml(rec.mode)} — ${escapeHtml(rec.name)}</div>` +
+      `<div class="pill">${escapeHtml(rec.mode)} • ${rec.score}</div>` +
+      (scored.modeReason ? `<div class="small" style="margin-top:6px">${escapeHtml(scored.modeReason)}</div>` : ``);
+
+    const lines = top3.map((p, i) =>
+      `${i+1}. ${escapeHtml(p.mode)} — ${escapeHtml(p.name)} <span class="pill" style="margin-left:6px">${p.score}</span>`
+    ).join("<br>");
+
+    addBotBubble(`${header}<div style="height:10px"></div><div class="k">Top 3</div><div class="small" style="line-height:1.5">${lines}</div><div class="small" style="margin-top:10px;opacity:.8">Text <b>trend</b> for the full table snapshot. Text <b>explain</b> for details.</div>`);
+  }
+
+  function botReplyTrend(){
+    const vals = spins.map(x => x.n); // newest-first
+    if(vals.length < 10){
+      addBotBubble(
+        `<b>Need more spins</b><br>` +
+        `Log at least 10 spins for stable reads. Spins logged: ${vals.length}.`
+      );
+      return;
+    }
+
+    const scored = scoreAll(vals);
+    const rec = scored.recommended;
+
+    const header =
+      `<div class="k">Recommended</div>` +
+      `<div class="big">${escapeHtml(rec.mode)} — ${escapeHtml(rec.name)}</div>` +
+      `<div class="pill">${escapeHtml(rec.mode)} • ${rec.score}</div>` +
+      `<div class="small">${escapeHtml(rec.why)}</div>` +
+      (scored.modeReason ? `<div class="small" style="margin-top:8px">${escapeHtml(scored.modeReason)}</div>` : ``);
+
+    const body = formatTrend(scored.metrics).replace(/\n/g, "<br>");
+    const top3 = formatTop3(scored.plays).replace(/\n/g, "<br>");
+
+    addBotBubble(`${header}<div style="height:10px"></div>${body}<div style="height:10px"></div>${top3}`);
+  }
+
+
 
     const scored = scoreAll(vals);
     const rec = scored.recommended;
@@ -483,6 +596,46 @@
     const top3 = formatTop3(scored.plays).replace(/\n/g, "<br>");
 
     addBotBubble(`${header}<div style="height:10px"></div>${body}<div style="height:10px"></div>${top3}`);
+  }
+
+
+
+  function botReplyExplain(rank=1){
+    const vals = spins.map(x => x.n); // newest-first
+    if(vals.length < 10){
+      addBotBubble(`Need at least 10 spins to explain ranked plays. Paste history, then try <b>explain</b>.`);
+      return;
+    }
+    const scored = scoreAll(vals);
+    const plays = scored.plays || [];
+    const idx = Math.max(0, Math.min(plays.length-1, (rank||1)-1));
+    const p = plays[idx] || scored.recommended;
+
+    const key = `${p.mode} — ${p.name}`;
+    const how = PLAYBOOK[key] || `How to play not loaded for: ${key}`;
+
+    addBotBubble(
+      `<div class="k">Explain #${idx+1}</div>` +
+      `<div class="big">${escapeHtml(key)}</div>` +
+      `<div class="pill">${escapeHtml(p.mode)} • ${p.score}</div>` +
+      `<div class="mono" style="white-space:pre-wrap; margin-top:10px; font-size:12px; line-height:1.35; opacity:.95">${escapeHtml(how)}</div>`
+    );
+  }
+
+  function botReplyHelp(){
+    addBotBubble(
+      `<b>Commands</b><br>` +
+      `• <b>status</b> — compact (name + score only)<br>` +
+      `• <b>trend</b> — full snapshot (counts + top 3)<br>` +
+      `• <b>wheel</b> — wheel histogram (last 20)<br>` +
+      `• <b>explain</b> / <b>explain 2</b> / <b>explain 3</b> — how to play ranked strategies<br>` +
+      `• <b>export</b> — copy CSV to clipboard (backup)<br>` +
+      `• <b>offline</b> — offline reminders / backup tips<br>` +
+      `• <b>clear</b> — wipe local spins on this device<br><br>` +
+      `<b>Input</b><br>` +
+      `• Paste history: <b>0,00,34,23,5,17</b><br>` +
+      `• Add spin: <b>17</b> or short list: <b>10,12,4</b>`
+    );
   }
 
 function wheelHistogramText(lastN=20){
@@ -596,6 +749,11 @@ function wheelHistogramText(lastN=20){
       return;
     }
 
+    if(lower === "help"){
+      botReplyHelp();
+      return;
+    }
+    
 
     if(lower === "wheel"){
       if(spins.length===0){
@@ -610,8 +768,27 @@ function wheelHistogramText(lastN=20){
     }
 
     
-    if(lower === "status"){
-      botReply();
+    
+    // explain / explain 2 / explain2
+    if(lower.startsWith("explain")){
+      let n = 1;
+      const m = lower.match(/^explain\s*([0-9]+)?$/);
+      if(m && m[1]) n = Number(m[1])||1;
+      else {
+        const m2 = lower.match(/^explain([0-9]+)$/);
+        if(m2 && m2[1]) n = Number(m2[1])||1;
+      }
+      botReplyExplain(n);
+      return;
+    }
+
+if(lower === "status"){
+      botReplyCompact();
+      return;
+    }
+
+    if(lower === "trend"){
+      botReplyTrend();
       return;
     }
 
@@ -624,10 +801,10 @@ const nums = parseNumbers(text);
     if(!historyLoaded){
       ingestNumbers(nums, true);
       addBotBubble(`<b>History loaded</b><br>${nums.length} spins ingested. Now send new spins one at a time (or small comma lists).`);
-      botReply();
+      botReplyCompact();
     } else {
       ingestNumbers(nums, false);
-      botReply();
+      botReplyCompact();
     }
   }
 
@@ -650,7 +827,7 @@ const nums = parseNumbers(text);
   } else {
     addBotBubble(`<b>Restored</b><br>${spins.length} spins loaded from this device.`);
     historyLoaded = true;
-    botReply();
+    botReplyCompact();
   }
 })();
 </script>
