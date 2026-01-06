@@ -734,6 +734,8 @@ function explainRank(rank){
 
     pushBubble("Unrecognized. Text help for commands, or send a spin like 17 / 00.", false);
   }
+  window.__stealthOnSend = onSend;
+
 
   function seedIntro(){
     if(spins.length === 0){
@@ -755,5 +757,59 @@ function explainRank(rank){
   seedIntro();
 })();
 </script>
+
+<script>
+/* STEALTH v1.0 send binding hardening
+   Fix: ensure Send works across differing element IDs and if earlier scripts failed to bind.
+*/
+(function(){
+  function byIdList(ids){ for(const id of ids){ const el=document.getElementById(id); if(el) return el; } return null; }
+  function bind(){
+    const input = byIdList(["msgInput","messageInput","textInput","input","chatInput"]);
+    const send  = byIdList(["sendBtn","send","sendButton","btnSend"]);
+    const form  = document.querySelector("form");
+    const fn = (typeof window.__stealthOnSend === "function") ? window.__stealthOnSend
+             : (typeof window.onSend === "function") ? window.onSend
+             : (typeof window.handleSend === "function") ? window.handleSend
+             : (typeof window.sendMessage === "function") ? window.sendMessage
+             : null;
+
+    function doSend(){
+      if(typeof fn === "function"){
+        fn();
+        return;
+      }
+      if(send){
+        send.dispatchEvent(new MouseEvent("click",{bubbles:true,cancelable:true}));
+      }
+    }
+
+    if(send){
+      send.addEventListener("click", function(e){ e.preventDefault(); e.stopPropagation(); doSend(); }, true);
+      send.style.pointerEvents = "auto";
+    }
+
+    if(form){
+      form.addEventListener("submit", function(e){ e.preventDefault(); doSend(); }, true);
+    }
+
+    if(input){
+      input.addEventListener("keydown", function(e){
+        if(e.key === "Enter"){
+          e.preventDefault();
+          doSend();
+        }
+      }, true);
+    }
+  }
+
+  if(document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", bind);
+  } else {
+    bind();
+  }
+})();
+</script>
+
 </body>
 </html>
