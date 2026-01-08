@@ -151,6 +151,11 @@
           <div class="box"><div class="k">Columns (C1/C2/C3)</div><div class="v mono" id="cols">0 / 0 / 0</div></div>
           <div class="box"><div class="k">Dozens (D1/D2/D3)</div><div class="v mono" id="doz">0 / 0 / 0</div></div>
           <div class="box"><div class="k">Double Streets (per dozen)</div><div class="v mono" id="ds">D1 — | D2 — | D3 —</div></div>
+
+          <div class="box"><div class="k">Hydra Cold DS (top 2)</div><div class="v mono" id="hydraColdDS">—</div></div>
+          <div class="box"><div class="k">Hydra Cold Corners (top 4)</div><div class="v mono" id="hydraColdCorners">—</div></div>
+          <div class="box"><div class="k">Hydra Cold Splits (top 3)</div><div class="v mono" id="hydraColdSplits">—</div></div>
+
           <div class="box"><div class="k">Red / Black</div><div class="v mono" id="rb">0 / 0</div></div>
           <div class="box"><div class="k">High / Low</div><div class="v mono" id="hl">0 / 0</div></div>
           <div class="box"><div class="k">Even / Odd</div><div class="v mono" id="eo">0 / 0</div></div>
@@ -1171,42 +1176,7 @@ function scoreJunkoHot(vals){
   return {score, why:`Junko quadrant momentum: max ${qMax}/15.`, numbers: []};
 }
 
-function scoreJunko10ToWin(win, history) {
-  const w = lastN(history, win);
-  if (w.length < 15) return { score: 0, label: "Need 15+", detail: "Warmup" };
-
-  const lookback = 8;
-  const tail = w.slice(-lookback).map(n => normalizeSpin(n));
-  const sets = {
-    GN: new Set([99,0,1,2,9,10,13,14,27,28]),
-    HO: new Set([24,25,26,29,30,33,34,35,36]),
-    LO: new Set([3,4,8,11,12,15,16,22,23]),
-    M:  new Set([5,6,7,17,18,19,20,21,31,32]),
-  };
-
-  const counts = { GN:0, HO:0, LO:0, M:0 };
-  for (const x of tail) {
-    for (const k of Object.keys(sets)) {
-      if (sets[k].has(x)) { counts[k]++; break; }
-    }
-  }
-
-  const zeros = Object.keys(counts).filter(k => counts[k] === 0);
-  if (!zeros.length) return { score: 58, label: "No drought", detail: "Need a missing quadrant in last 8" };
-
-  const nonzero = Object.keys(counts).filter(k => counts[k] > 0).map(k => counts[k]);
-  let balanced = false;
-  if (nonzero.length) {
-    const mx = Math.max(...nonzero), mn = Math.min(...nonzero);
-    balanced = (mx - mn) <= 1;
-  }
-
-  const order = ["GN","HO","LO","M"];
-  const missing = order.find(k => zeros.includes(k)) || zeros[0];
-
-  const score = balanced ? 88 : 76;
-  return { score, label: `Missing ${missing}`, detail: `Counts(last 8): GN ${counts.GN} | HO ${counts.HO} | LO ${counts.LO} | M ${counts.M}` };
-}
+// function scoreJunko10ToWin(...) { ... }  // disabled
 
 
 
@@ -1282,8 +1252,8 @@ function scoreStrategies(vals) {
   const os = scoreOppSeg(vals); add("Opposite-Segment Contrarian (Option 1)", os.score, os.why, {numbers: os.numbers});
   const ftl = scoreFTL(vals); add("Corners + Double Streets (Follow the Leader)", ftl.score, ftl.why, {numbers: ftl.numbers, block: ftl.block});
   const jh = scoreJunkoHot(vals); add("Junko Hot (Quadrant Momentum)", jh.score, jh.why);
-  const j10 = scoreJunko10ToWin(win, history); add("Junko 10 to Win (Quadrant-Gated)", j10.score, j10.label);
-  const ss = scoreSlowSteady(vals); add("Slow & Steady (Structural Bias)", ss.score, ss.why);
+  // Junko 10 to Win (Quadrant-Gated) temporarily disabled (missing helpers)
+const ss = scoreSlowSteady(vals); add("Slow & Steady (Structural Bias)", ss.score, ss.why);
 
 // New rotation strategies
 const hc = scoreHydraColumns(vals); add("Hydra v1.5B — Columns (Fixed)", hc.score, hc.why, {numbers: hc.numbers});
@@ -1337,6 +1307,76 @@ const ds = scoreDisappearingStreets(vals); add("Disappearing Streets (Comp Build
   return {state, plays: top3, primary};
 }
 
+
+// -------------------------
+// Hydra "coldness" helpers
+// Coldness = spins since last hit within current session (larger = colder)
+// -------------------------
+const HYDRA_DS = [
+  {label:"1-6", set:new Set([1,2,3,4,5,6])},
+  {label:"7-12", set:new Set([7,8,9,10,11,12])},
+  {label:"13-18", set:new Set([13,14,15,16,17,18])},
+  {label:"19-24", set:new Set([19,20,21,22,23,24])},
+  {label:"25-30", set:new Set([25,26,27,28,29,30])},
+  {label:"31-36", set:new Set([31,32,33,34,35,36])},
+];
+
+// Build all 4-number corner bets (layout corners only, excludes 0/00)
+const HYDRA_CORNERS = (()=>{
+  const corners = [];
+  // grid is 12 rows x 3 cols: rows 0..11 correspond to (1-3),(4-6),...,(34-36)
+  // corner exists for row r=0..10 and col c=0..1
+  for(let r=0; r<11; r++){
+    const base = r*3;
+    for(let c=0; c<2; c++){
+      const a = base + (1+c);
+      const b = base + (2+c);
+      const d = base + (4+c);
+      const e = base + (5+c);
+      const label = `${a}/${e}`;
+      corners.push({label, set:new Set([a,b,d,e])});
+    }
+  }
+  return corners;
+})();
+
+// Build all vertical + horizontal splits (excluding 0/00)
+const HYDRA_SPLITS = (()=>{
+  const splits = [];
+  // horizontal splits: (n, n+1) within each street
+  for(let r=0; r<12; r++){
+    const a = r*3+1, b=a+1, c=a+2;
+    splits.push({label:`${a}-${b}`, set:new Set([a,b])});
+    splits.push({label:`${b}-${c}`, set:new Set([b,c])});
+  }
+  // vertical splits: (n, n+3) between adjacent streets
+  for(let r=0; r<11; r++){
+    for(let c=0; c<3; c++){
+      const a = r*3+1+c;
+      const b = a+3;
+      splits.push({label:`${a}|${b}`, set:new Set([a,b])});
+    }
+  }
+  return splits;
+})();
+
+function spinsSinceHit(sessionVals, betSet){
+  // sessionVals is most-recent-first
+  for(let i=0;i<sessionVals.length;i++){
+    const n = sessionVals[i];
+    if(n==="00" || n===99 || n===0) continue; // inside bets ignore 0/00
+    const v = (typeof n==="string") ? parseInt(n,10) : n;
+    if(betSet.has(v)) return i; // 0 = hit on last spin
+  }
+  return sessionVals.length; // never hit in session
+}
+
+function coldestK(sessionVals, items, k){
+  const scored = items.map(it => ({...it, cold: spinsSinceHit(sessionVals, it.set)}));
+  scored.sort((a,b)=>b.cold-a.cold);
+  return scored.slice(0,k);
+}
+
 function render() {
     $("winLabel").textContent = "Last " + windowN;
     $("spinCount").textContent = String(spins.length);
@@ -1351,6 +1391,16 @@ function render() {
 
     const dsc = dsCounts(recent);
     $("ds").textContent = `D1 ${dsc.d1[0]}/${dsc.d1[1]}/${dsc.d1[2]} | D2 ${dsc.d2[0]}/${dsc.d2[1]}/${dsc.d2[2]} | D3 ${dsc.d3[0]}/${dsc.d3[1]}/${dsc.d3[2]}`;
+
+    // Hydra coldness (session-scoped)
+    const sessionVals = spins.filter(x => x.s===sessionId).map(x=>x.n); // most recent first
+    const coldDS = coldestK(sessionVals, HYDRA_DS, 2).map(x=>`${x.label}(${x.cold})`).join(" • ");
+    const coldCorners = coldestK(sessionVals, HYDRA_CORNERS, 4).map(x=>`${x.label}(${x.cold})`).join(" • ");
+    const coldSplits = coldestK(sessionVals, HYDRA_SPLITS, 3).map(x=>`${x.label}(${x.cold})`).join(" • ");
+    $("hydraColdDS").textContent = coldDS || "—";
+    $("hydraColdCorners").textContent = coldCorners || "—";
+    $("hydraColdSplits").textContent = coldSplits || "—";
+
 
     $("rb").textContent   = `${cts.red} / ${cts.black}`;
     $("hl").textContent   = `${cts.high} / ${cts.low}`;
@@ -1617,26 +1667,4 @@ render();
 });
 </script>
 </body>
-</html,
-  "CASH — Junko 10 to Win (Quadrant-Gated)": {
-    type: "CASH",
-    title: "Junko 10 to Win (Quadrant-Gated)",
-    bullets: [
-      "Warmup: observe 15 spins, no bets.",
-      "Trigger (last 8): at least one quadrant has 0 hits AND the others are balanced (max-min ≤ 1).",
-      "Bet the missing quadrant with per-number units u = 1,1,2,3,5 then +1 each additional miss.",
-      "Remove any hit number from that quadrant; reset u=1 on a hit."
-    ],
-    howTo: [
-      "Sets (American; 00 encoded as 99):",
-      "GN=(99, 0, 1, 2, 9, 10, 13, 14, 27, 28)",
-      "HO=(24, 25, 26, 29, 30, 33, 34, 35, 36)",
-      "LO=(3, 4, 8, 11, 12, 15, 16, 22, 23)",
-      "M =(5, 6, 7, 17, 18, 19, 20, 21, 31, 32)",
-      "",
-      "When triggered: bet ALL remaining numbers in the missing quadrant at unit u ($ per number).",
-      "Progression: u sequence 1,1,2,3,5; after 5th miss, u = 6,7,8... (+1 each miss).",
-      "On hit: remove that number from the set; reset u=1.",
-      "Exit: cashout +$100; stop-loss -$300; guardrail: no bet if worst-case loss would breach stop-loss."
-    ]
-  }>
+</html>
