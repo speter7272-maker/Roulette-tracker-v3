@@ -266,6 +266,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function normalizeSpin(v) { return normSpin(v); }
 
+// Return the newest N values from a newest-first array.
+function lastN(arr, n){
+  if(!Array.isArray(arr)) return [];
+  const k = Math.max(0, Math.min(arr.length, Number(n)||0));
+  return arr.slice(0, k);
+}
+
+
 
   function isGreen(n) { return (n === "00" || Number(n) === 0); }
   function isRed(n)   { return (n !== "00" && RED.has(Number(n))); }
@@ -1214,7 +1222,7 @@ function scoreJunkoHot(vals){
   return {score, why:`Junko quadrant momentum: max ${qMax}/15.`, numbers: []};
 }
 
-function scoreJunko10ToWin(win, history) {
+function scoreJunko10ToWin(windowN, vals) {
   const w = lastN(history, win);
   if (w.length < 15) return { score: 0, label: "Need 15+", detail: "Warmup" };
 
@@ -1389,7 +1397,7 @@ const tr = scoreTrinity(vals); add("Trinity–Junko v2", tr.score, tr.why, {numb
   const os = scoreOppSeg(vals); add("Opposite-Segment Contrarian (Option 1)", os.score, os.why, {numbers: os.numbers});
   const ftl = scoreFTL(vals); add("Corners + Double Streets (Follow the Leader)", ftl.score, ftl.why, {numbers: ftl.numbers, block: ftl.block});
   const jh = scoreJunkoHot(vals); add("Junko Hot (Quadrant Momentum)", jh.score, jh.why);
-  const j10 = scoreJunko10ToWin(win, history); add("Junko 10 to Win (Quadrant-Gated)", j10.score, j10.label);
+  const j10 = scoreJunko10ToWin(windowN, vals); add("Junko 10 to Win (Quadrant-Gated)", j10.score, j10.label);
   const ss = scoreSlowSteady(vals); add("Slow & Steady (Structural Bias)", ss.score, ss.why);
 
 // New rotation strategies
