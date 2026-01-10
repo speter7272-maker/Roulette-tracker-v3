@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Roulette Trend Tracker • FULL • Build: 2026-01-06 • CASH PRIORITY v13.3</title>
+  <title>Roulette Trend Tracker • FULL • Build: 2026-01-06 • CASH PRIORITY v14.4</title>
   <style>
     :root{color-scheme:dark; --bg:#0b1220; --card:#0f1a2e; --muted:#94a3b8; --txt:#e5e7eb; --accent:#60a5fa; --warn:#fbbf24; --danger:#ef4444; --ok:#34d399; --chip:#111c33; --border:#1f2a44;}
     *{box-sizing:border-box}
@@ -71,8 +71,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-06 • FULL • CASH PRIORITY v13.3</div>
-    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v13.3</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-06 • FULL • CASH PRIORITY v14.4</div>
+    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v14.4</div>
     <div class="sub">Build date: <b>2026-01-06</b>. Tap spins on the keypad. Tracks last 10/15/20: columns, dozens, double-streets, red/black, high/low, even/odd, Junko quadrants. Saves on-device.</div>
 
     <div class="card">
@@ -1108,7 +1108,11 @@ function scoreMoonDance(vals){
   let score = 70 + zeros*6 + Math.max(0, (2-avgLow))*10; // heuristic
   score = Math.max(0, Math.min(99, Math.round(score)));
   const nums = moonDanceNumbers(last15);
-  return {score, why:`Least-hit streets identified per dozen (18-number coverage).`, numbers: nums};
+  const info = leastTwoStreetsPerDozen(last15);
+  const picks = info.picks;
+  const betLines = ["D1","D2","D3"].map(d => `${d}: ${picks[d][0].range} & ${picks[d][1].range}`).join(" | ");
+  const betText = `Bet ${betLines} (18 nums)`;
+  return {score, why:`Least-hit streets identified per dozen (18-number coverage).`, numbers: nums, md_picks: picks, betText};
 }
 
 function scoreTrinity(vals){
@@ -1409,7 +1413,10 @@ function render() {
         <div class="playhdr">
           <div>
             <div style="font-weight:900">${idx+1}. ${p.mode} — ${p.name}</div>
-            <div class="small">${(p.why||"—").replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+            <div class="small">${(p.why||"—").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>
+            ${p.betText ? `<div class="small" style="margin-top:6px"><b>Bet:</b> ${(p.betText||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>` : ""}
+            ${p.key==="MOON_DANCE" && p.md_picks ? `<div class="small" style="margin-top:6px"><b>Streets:</b> D1 ${p.md_picks.D1[0].range} & ${p.md_picks.D1[1].range} • D2 ${p.md_picks.D2[0].range} & ${p.md_picks.D2[1].range} • D3 ${p.md_picks.D3[0].range} & ${p.md_picks.D3[1].range}</div>` : ""}
+            ${p.numbers && p.numbers.length ? `<div class="small" style="margin-top:6px"><b>Numbers:</b> ${p.numbers.join(", ")}</div>` : ""}
           </div>
           <div class="tag">${p.mode} • ${p.score}</div>
         </div>
