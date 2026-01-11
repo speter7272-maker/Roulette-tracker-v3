@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Roulette Trend Tracker • FULL • Build: 2026-01-06 • CASH PRIORITY v14.4</title>
+  <title>Roulette Trend Tracker • FULL • Build: 2026-01-09 • CASH PRIORITY v14.6</title>
   <style>
     :root{color-scheme:dark; --bg:#0b1220; --card:#0f1a2e; --muted:#94a3b8; --txt:#e5e7eb; --accent:#60a5fa; --warn:#fbbf24; --danger:#ef4444; --ok:#34d399; --chip:#111c33; --border:#1f2a44;}
     *{box-sizing:border-box}
@@ -71,9 +71,9 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-06 • FULL • CASH PRIORITY v14.4</div>
-    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v14.4</div>
-    <div class="sub">Build date: <b>2026-01-06</b>. Tap spins on the keypad. Tracks last 10/15/20: columns, dozens, double-streets, red/black, high/low, even/odd, Junko quadrants. Saves on-device.</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-09 • FULL • CASH PRIORITY v14.6</div>
+    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v14.6</div>
+    <div class="sub">Build date: <b>2026-01-09</b>. Tap spins on the keypad. Tracks last 10/15/20: columns, dozens, double-streets, red/black, high/low, even/odd, Junko quadrants. Saves on-device.</div>
 
     <div class="card">
       <div class="row">
@@ -81,6 +81,7 @@
         <div class="pill">Spins: <b id="spinCount">0</b></div>
         <div class="pill">Session: <b id="sessionCount">0</b></div>
         <div class="pill">Green: <b id="greenCount">0</b></div>
+          <div class="pill">GDC: <b id="greenDrought">0</b></div>
       </div>
       <div class="row" style="margin-top:10px">
         <label class="pill" style="gap:10px; align-items:center; width:100%">
@@ -158,6 +159,12 @@
             <div class="k">Dirty Bird DB‑CDS (last15 no‑green)</div>
             <div class="v mono" id="dbcds">—</div>
             <div class="k" id="dbcds2">—</div>
+          </div>
+
+          <div class="box">
+            <div class="k">Green Add-on (GSAH-15)</div>
+            <div class="v mono" id="gsah">—</div>
+            <div class="k" id="gsah2">—</div>
           </div>
 
 
@@ -247,11 +254,28 @@ document.addEventListener('DOMContentLoaded', () => {
   const LO = new Set([3,4,8,11,12,15,16,22,23]);
   const MID= new Set([5,6,7,17,18,19,20,21,31,32]);
 
-  let spins = []; // newest-first: {n,t,s}
+  let spins = [];
+      gdc = 0;
+      gsah = { ...gsah, state:"OFF", cooldown:false, u:1, lossCount:0, betSpins:0, pnlU:0, pending:false, pendingU:1, offReason:"" }; // newest-first: {n,t,s}
   let windowN = 15;
   let sessionId = 1;
 
-  const $ = (id) => document.getElementById(id);
+  
+  // Green drought + GSAH add-on state
+  let gdc = 0; // non-green spins since last green
+  let gsah = {
+    state: "OFF", // OFF | ARMED | ACTIVE
+    cooldown: false, // requires green hit to re-arm when true
+    u: 1,
+    lossCount: 0,
+    betSpins: 0,
+    pnlU: 0,
+    pending: false,
+    pendingU: 1,
+    offReason: ""
+  };
+
+const $ = (id) => document.getElementById(id);
   const trendDismissBtn = $("trendDismissBtn");
   const trendAlert = $("trendAlert");
 
@@ -800,9 +824,68 @@ Exits
 
   function addSpin(val) {
     const k = numToKey(val);
-    if(k===null) return;
+    if (k===null) return;
+
+    // Settle any pending hedge bet (it was placed for THIS spin)
+    if (gsah.pending) {
+      const hitGreen = isGreen(k);
+      const uBet = Number.isFinite(gsah.pendingU) ? gsah.pendingU : (Number.isFinite(gsah.u) ? gsah.u : 1);
+
+      if (hitGreen) {
+        // +17u net on split hit
+        gsah.pnlU += (17 * uBet);
+        gsah.u = 1;
+        gsah.lossCount = 0;
+        gsah.betSpins = 0;
+        gsah.state = "OFF";
+        gsah.cooldown = false;
+        gsah.offReason = "Green hit — reset";
+        gdc = 0;
+      } else {
+        gsah.pnlU += (-1 * uBet);
+        gsah.lossCount += 1;
+        gsah.betSpins += 1;
+
+        // 1/4 linear progression
+        if (gsah.lossCount % 4 === 0) {
+          gsah.u = Math.min(6, (Number.isFinite(gsah.u) ? gsah.u : 1) + 1);
+        }
+
+        // Safety budget
+        if (gsah.pnlU <= -12) {
+          gsah.state = "OFF";
+          gsah.cooldown = true;
+          gsah.offReason = "Safety budget hit (≤ −12u)";
+        }
+
+        // Time cap: 15 hedge bet-spins without green hit
+        if (gsah.state !== "OFF" && gsah.betSpins >= 15) {
+          gsah.state = "OFF";
+          gsah.cooldown = true;
+          gsah.offReason = "15 hedge bets w/o green";
+        }
+
+        // Cap rule: if at u=6 and completed another full 4-loss cycle, turn off
+        if (gsah.state !== "OFF" && gsah.u >= 6 && (gsah.lossCount % 4 === 0)) {
+          gsah.state = "OFF";
+          gsah.cooldown = true;
+          gsah.offReason = "U6 full loss cycle";
+        }
+      }
+
+      gsah.pending = false;
+    }
+
+    // Update green drought counter (if not already reset by hedge win)
+    if (isGreen(k)) {
+      gdc = 0;
+      gsah.cooldown = false;
+    } else {
+      gdc = (Number.isFinite(gdc) ? gdc : 0) + 1;
+    }
+
     spins.unshift({ n:k, t:Date.now(), s:sessionId });
-    if(spins.length > 5000) spins = spins.slice(0,5000);
+    if (spins.length > 5000) spins = spins.slice(0, 5000);
     save();
     render();
   }
@@ -824,6 +907,8 @@ Exits
 
   function newSession() {
     sessionId += 1;
+      gdc = 0;
+      gsah = { ...gsah, state:"OFF", cooldown:false, u:1, lossCount:0, betSpins:0, pnlU:0, pending:false, pendingU:1, offReason:"" };
     save();
     render();
   }
@@ -994,14 +1079,29 @@ function leastTwoStreetsPerDozen(last15){
     if(!k) return;
     counts[k.dozen][k.within-1] += 1;
   });
+
+  // Street ranges per dozen (within 1..4)
+  const ranges = {
+    1: {1:{start:1,end:3,label:"1–3"}, 2:{start:4,end:6,label:"4–6"}, 3:{start:7,end:9,label:"7–9"}, 4:{start:10,end:12,label:"10–12"}},
+    2: {1:{start:13,end:15,label:"13–15"}, 2:{start:16,end:18,label:"16–18"}, 3:{start:19,end:21,label:"19–21"}, 4:{start:22,end:24,label:"22–24"}},
+    3: {1:{start:25,end:27,label:"25–27"}, 2:{start:28,end:30,label:"28–30"}, 3:{start:31,end:33,label:"31–33"}, 4:{start:34,end:36,label:"34–36"}}
+  };
+
   // pick two least-hit within each dozen; ties -> lower within index
-  const picks = {};
+  const picks = {};       // {dozen:[withinIdx, withinIdx]}
+  const pickDetail = {};  // {dozen:[{idx, range}, {idx, range}]}
+
   [1,2,3].forEach(d=>{
-    const arr = counts[d].map((c,i)=>({c,i:i+1}));
-    arr.sort((a,b)=> (a.c-b.c) || (a.i-b.i));
-    picks[d] = [arr[0].i, arr[1].i];
+    const arr = counts[d].map((c,i)=>({c, idx:i+1}));
+    arr.sort((a,b)=> (a.c-b.c) || (a.idx-b.idx));
+    picks[d] = [arr[0].idx, arr[1].idx];
+    pickDetail[d] = [
+      { idx: arr[0].idx, range: ranges[d][arr[0].idx] },
+      { idx: arr[1].idx, range: ranges[d][arr[1].idx] }
+    ];
   });
-  return {counts, picks};
+
+  return {counts, picks, pickDetail};
 }
 
 function numbersForDozenStreet(dozen, within){
@@ -1095,7 +1195,7 @@ function pickFTLBlock(last2){
 function scoreMoonDance(vals){
   const last15 = vals.slice(0,15);
   if(last15.length<15) return {score:0, why:"Need 15 spins."};
-  const {counts, picks} = leastTwoStreetsPerDozen(last15);
+  const {counts, picks, pickDetail} = leastTwoStreetsPerDozen(last15);
   // score higher when depletion is strong: lowest streets very low (0-1 hits)
   const lows = [];
   [1,2,3].forEach(d=>{
@@ -1108,11 +1208,20 @@ function scoreMoonDance(vals){
   let score = 70 + zeros*6 + Math.max(0, (2-avgLow))*10; // heuristic
   score = Math.max(0, Math.min(99, Math.round(score)));
   const nums = moonDanceNumbers(last15);
-  const info = leastTwoStreetsPerDozen(last15);
-  const picks = info.picks;
-  const betLines = ["D1","D2","D3"].map(d => `${d}: ${picks[d][0].range} & ${picks[d][1].range}`).join(" | ");
+  const md = leastTwoStreetsPerDozen(last15);
+  const betLines = ["D1","D2","D3"].map(d=>{
+    const dd = Number(d.replace("D",""));
+    const a = md.pickDetail[dd][0];
+    const b = md.pickDetail[dd][1];
+    return `${d}: ${a.range.label} & ${b.range.label}`;
+  }).join(" | ");
   const betText = `Bet ${betLines} (18 nums)`;
-  return {score, why:`Least-hit streets identified per dozen (18-number coverage).`, numbers: nums, md_picks: picks, betText};
+  const detail = [1,2,3].map(d=>{
+    const a = md.pickDetail[d][0];
+    const b = md.pickDetail[d][1];
+    return `D${d}: ${a.range.label} & ${b.range.label} (counts ${md.counts[d][a.idx-1]}/${md.counts[d][b.idx-1]})`;
+  }).join(" • ");
+  return {score, why:`Least-hit streets identified per dozen (18-number coverage).`, numbers: nums, md_picks: md.picks, md_pickDetail: md.pickDetail, md_counts: md.counts, betText, detail};
 }
 
 function scoreTrinity(vals){
@@ -1378,6 +1487,37 @@ function render() {
     const scored = scoreStrategies(recent);
     $("recommend").textContent = `${scored.primary.mode} — ${scored.primary.name}`;
     $("reason").textContent = scored.primary.why || "—";
+    // ---- GSAH-15 add-on (0/00 split hedge) ----
+    const mainBetting = (String(scored.primary.mode || "").toLowerCase() !== "sit out");
+
+    // Arm when drought >=15 and not in cooldown
+    if (!gsah.cooldown && (Number.isFinite(gdc) ? gdc : 0) >= 15 && gsah.state === "OFF") {
+      gsah.state = "ARMED";
+      gsah.offReason = "";
+    }
+
+    // If green has hit, cooldown clears (redundant safety)
+    if ((Number.isFinite(gdc) ? gdc : 0) === 0 && gsah.cooldown) gsah.cooldown = false;
+
+    // Decide if hedge will bet on NEXT spin (only when primary is betting)
+    gsah.pending = false;
+    if (gsah.state === "ARMED" && mainBetting) gsah.state = "ACTIVE";
+    if (gsah.state === "ACTIVE" && mainBetting) {
+      gsah.pending = true;
+      gsah.pendingU = Number.isFinite(gsah.u) ? gsah.u : 1;
+    }
+
+    const status = gsah.cooldown
+      ? `OFF (cooldown) — ${gsah.offReason || "—"}`
+      : (gsah.state === "OFF" ? "OFF" : (gsah.state === "ARMED" ? "ARMED (GDC≥15)" : "ACTIVE"));
+
+    const nextBet = (gsah.pending && mainBetting)
+      ? `Next spin: bet 0/00 split u=${gsah.pendingU}`
+      : "Next spin: —";
+
+    $("gsah").textContent = status;
+    $("gsah2").textContent = `${nextBet} • u=${gsah.u||1} • losses=${gsah.lossCount||0} • betSpins=${gsah.betSpins||0} • pnl=${gsah.pnlU||0}u`;
+
     $("state").textContent = scored.state;
     $("state2").textContent = `Window: last ${windowN} • Session: ${sessionId}`;
     // Extra diagnostics
