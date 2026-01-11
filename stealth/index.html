@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Roulette Trend Tracker • FULL • Build: 2026-01-09 • CASH PRIORITY v14.6</title>
+  <title>Roulette Trend Tracker • FULL • Build: 2026-01-09 • CASH PRIORITY v14.7</title>
   <style>
     :root{color-scheme:dark; --bg:#0b1220; --card:#0f1a2e; --muted:#94a3b8; --txt:#e5e7eb; --accent:#60a5fa; --warn:#fbbf24; --danger:#ef4444; --ok:#34d399; --chip:#111c33; --border:#1f2a44;}
     *{box-sizing:border-box}
@@ -71,8 +71,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-09 • FULL • CASH PRIORITY v14.6</div>
-    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v14.6</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-09 • FULL • CASH PRIORITY v14.7</div>
+    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v14.7</div>
     <div class="sub">Build date: <b>2026-01-09</b>. Tap spins on the keypad. Tracks last 10/15/20: columns, dozens, double-streets, red/black, high/low, even/odd, Junko quadrants. Saves on-device.</div>
 
     <div class="card">
@@ -242,6 +242,10 @@
     </div>
   </div>
 <script>
+
+  // DOM helpers
+  const $ = (id) => document.getElementById(id);
+  const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
 document.addEventListener('DOMContentLoaded', () => {
   const STORAGE_KEY = "roulette_trend_tracker_base_keypad_tracking_v1";
   const ACTIVE_KEY = "roulette_active_strategy_v1";
@@ -254,26 +258,25 @@ document.addEventListener('DOMContentLoaded', () => {
   const LO = new Set([3,4,8,11,12,15,16,22,23]);
   const MID= new Set([5,6,7,17,18,19,20,21,31,32]);
 
-  let spins = [];
-      gdc = 0;
-      gsah = { ...gsah, state:"OFF", cooldown:false, u:1, lossCount:0, betSpins:0, pnlU:0, pending:false, pendingU:1, offReason:"" }; // newest-first: {n,t,s}
-  let windowN = 15;
-  let sessionId = 1;
+  let spins = []; // newest-first: {n,t,s}
+  // Green drought counter (GDC): increments on non-green spins, resets on 0/00
+  let gdc = 0;
 
-  
-  // Green drought + GSAH add-on state
-  let gdc = 0; // non-green spins since last green
+  // Green Split Add-On Hedge (GSAH-15): state machine for optional overlay betting
   let gsah = {
-    state: "OFF", // OFF | ARMED | ACTIVE
-    cooldown: false, // requires green hit to re-arm when true
+    state: "OFF",        // OFF | ARMED | ACTIVE
+    armed: false,
     u: 1,
-    lossCount: 0,
-    betSpins: 0,
-    pnlU: 0,
-    pending: false,
+    lossCount: 0,        // hedge losses since last u bump
+    betSpins: 0,         // hedge bet-spins since activation
+    pnlU: 0,             // hedge PnL in units (for -12u budget)
+    pending: false,      // whether hedge bet was placed for the next spin resolution
     pendingU: 1,
     offReason: ""
   };
+
+  let windowN = 15;
+  let sessionId = 1;
 
 const $ = (id) => document.getElementById(id);
   const trendDismissBtn = $("trendDismissBtn");
