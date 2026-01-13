@@ -1711,7 +1711,10 @@ function render() {
       pb.style.display = "none";
       pb.onclick = null;
     }
-  }
+  
+    // Rebuild keypad after every render (render() replaces the DOM and can wipe it)
+    try { buildKeypad(); } catch(e) { console.warn('Keypad build failed', e); }
+}
 
   // UI wiring
   $("undoBtn").addEventListener("click", undo);
@@ -1921,8 +1924,7 @@ function render() {
 
     window.addEventListener("resize", ()=>{ if(wheelModal && wheelModal.style.display !== "none") drawWheelHistogram(20); });
   load();
-  buildKeypad();
-  
+
   if(trendDismissBtn){
     trendDismissBtn.onclick = function(){ if(trendAlert) trendAlert.style.display="none"; };
   }
