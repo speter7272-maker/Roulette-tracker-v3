@@ -25,8 +25,12 @@
     textarea{min-height:92px}
     .grid{display:grid;grid-template-columns:1fr;gap:10px}
     @media(min-width:860px){.grid{grid-template-columns:1.1fr .9fr}}
-    .kbd{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;}
-    .key{padding:12px 8px;border-radius:12px;border:1px solid var(--border);background:#0c1730;color:var(--txt);font-weight:900;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparenttouch-action:manipulation;
+    .kbd{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;position:relative;z-index:5;}
+    /* KEYPAD_SAFETY */
+    #kbd, #kbd *{pointer-events:auto;}
+    #kbd{touch-action:manipulation;}
+
+    .key{padding:12px 8px;border-radius:12px;border:1px solid var(--border);background:#0c1730;color:var(--txt);font-weight:900;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;
     }
     .key.green{background:rgba(16,185,129,.16);border-color:rgba(16,185,129,.35)}
     .key.zero{background:rgba(245,158,11,.16);border-color:rgba(245,158,11,.35)}
@@ -898,6 +902,8 @@ Session targets (tested)
 
       // Most reliable: direct property handlers (less iOS weirdness than addEventListener)
       b.onclick = (e) => { if(e) e.preventDefault(); fire(k); };
+      b.onpointerup = (e) => { if(e){ try{e.preventDefault();}catch(_){} } fire(k); };
+      b.ontouchstart = (e) => { if(e){ try{e.preventDefault();}catch(_){} } };
       b.ontouchend = (e) => { if(e){ e.preventDefault(); e.stopPropagation(); } fire(k); };
 
       kbd.appendChild(b);
@@ -1339,7 +1345,7 @@ function scoreVegasSpecial(vals){
     const n = Number(s);
     return Number.isFinite(n) ? n : null;
   };
-  const isGreen = (n)=> n===0 || n===99;
+  const isGreen = (n)=> (n===0 || n==="00");
   const streetIdOf = (n)=>{
     if(n===null || isGreen(n)) return null;
     if(n<1 || n>36) return null;
@@ -1512,7 +1518,7 @@ function dzOf(n){
 function lastNNoGreen(valsNewestFirst, N){
   const out=[];
   for(const v of valsNewestFirst){
-    if(v===0||v===99) continue;
+    if(v===0||v==="00") continue;
     out.push(v);
     if(out.length>=N) break;
   }
@@ -1653,7 +1659,7 @@ function repeatNumberInfo(valsNewestFirst, within=5){
   let repeats=0;
   for(let i=0;i<v.length;i++){
     const n=v[i];
-    if(n===0||n===99) continue;
+    if(n===0||n==="00") continue;
     if(seen.has(n) && (seen.get(n)-i)<=within) repeats++;
     seen.set(n,i);
   }
@@ -1661,12 +1667,12 @@ function repeatNumberInfo(valsNewestFirst, within=5){
 }
 function classifySystemDBWB(vals){
   const v20 = vals.slice(0,20);
-  const greens = v20.filter(v=>v===0 || v===99).length;
+  const greens = v20.filter(v=>(v===0 || v==="00")).length;
 
   // dozen "gap" proxy: if any dozen absent in last 20 => treat as large gap
   const seen={D1:false,D2:false,D3:false};
   for(const n of v20){
-    if(n===0||n===99) continue;
+    if(n===0||n==="00") continue;
     const dz=dzOf(n);
     if(dz===1) seen.D1=true;
     if(dz===2) seen.D2=true;
@@ -1684,7 +1690,7 @@ function classifySystemDBWB(vals){
 
   let low=0, high=0, even=0, odd=0;
   for(const n of v20){
-    if(n===0||n===99) continue;
+    if(n===0||n==="00") continue;
     if(n<=18) low++; else high++;
     if(n%2===0) even++; else odd++;
   }
@@ -1700,8 +1706,8 @@ function classifySystemDBWB(vals){
     }
     return tot? (flips/tot):0;
   }
-  const lhSeq = v20.map(n => (n===0||n===99)?null:(n<=18?"L":"H"));
-  const eoSeq = v20.map(n => (n===0||n===99)?null:(n%2===0?"E":"O"));
+  const lhSeq = v20.map(n => (n===0||n==="00")?null:(Number(n)<=18?"L":"H"));
+  const eoSeq = v20.map(n => (n===0||n==="00")?null:((Number(n)%2===0)?"E":"O"));
   const choppy = (altRate(lhSeq)>=0.70) || (altRate(eoSeq)>=0.70);
 
   const signals = [rn.flag, dozBias, outBias, parBias].filter(Boolean).length;
@@ -1792,6 +1798,16 @@ function scoreStrategies(vals) {
   const es = scoreEasyStreetA(vals); add("Easy Street — Cold Side (Option A′ Late Straights)", es.score, es.why, {bets: es.picks, betText: es.betText});
   const tv2 = scoreTrinityV2(vals); add("Trinity v2 (Independent Modules)", tv2.score, tv2.why, {bets: tv2.picks, betText: tv2.betText});
 
+
+
+  // Annotate play mode for display (COMP vs CASH)
+  plays.forEach(p => {
+    if (p && !p.mode) {
+      const nm = String(p.name || "");
+      const isCash = nm.startsWith("CASH —") || nm.includes("[Cash]") || CASH_PRIORITY.includes(nm);
+      p.mode = isCash ? "CASH" : "COMP";
+    }
+  });
 
   // Sort by score for display
   plays.sort((a,b)=>b.score-a.score);
