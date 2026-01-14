@@ -1947,6 +1947,7 @@ function dbcdsStatsLast15NoGreen(spinsChrono){
 }
 
 function render() {
+  try {
     $("winLabel").textContent = "Last " + windowN;
     $("spinCount").textContent = String(spins.length);
     $("sessionCount").textContent = String(spins.filter(x => x.s===sessionId).length);
@@ -2064,7 +2065,13 @@ function render() {
       pb.onclick = null;
     }
   
-    // Rebuild keypad after every render (render() replaces the DOM and can wipe it)
+    
+  } catch(e) {
+    console.error('Render error', e);
+    try { const rr = $("reason"); if (rr) rr.textContent = 'Render error: ' + (e && (e.message || e.toString()) || e); } catch(_) {}
+    try { const rc = $("recommend"); if (rc && rc.textContent === 'Sit out') rc.textContent = 'Render error'; } catch(_) {}
+  }
+// Rebuild keypad after every render (render() replaces the DOM and can wipe it)
     try { buildKeypad(); } catch(e) { console.warn('Keypad build failed', e); }
 }
 
