@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.3</title>
+  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.6</title>
   <style>
     :root{color-scheme:dark; --bg:#0b1220; --card:#0f1a2e; --muted:#94a3b8; --txt:#e5e7eb; --accent:#60a5fa; --warn:#fbbf24; --danger:#ef4444; --ok:#34d399; --chip:#111c33; --border:#1f2a44;}
     *{box-sizing:border-box}
@@ -76,8 +76,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.3</div>
-    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.3</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.6</div>
+    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.6</div>
     <div class="sub">Build date: <b>2026-01-09</b>. Tap spins on the keypad. Tracks last 10/15/20: columns, dozens, double-streets, red/black, high/low, even/odd, Junko quadrants. Saves on-device.</div>
 
     <div class="card">
@@ -2420,60 +2420,47 @@ function __waveUpdateFromSpin(val){
   };
 })();
 
-/* === LAYOUT PATCH: Move Last 20 + CSV controls under keypad (LOCKED SAFE) === */
+/* === LAYOUT PATCH: Force-move Last 20 + CSV controls under keypad (LOCKED SAFE) === */
 (function(){
-  function closestCard(el){
-    let p = el;
-    for(let i=0;i<12 && p; i++){
-      if(p.classList && p.classList.contains("card")) return p;
-      p = p.parentElement;
-    }
-    return null;
-  }
+  function relocate(){
+    const keypadAnchor = document.getElementById("keypadAnchor");
+    if(!keypadAnchor) return false;
+    const keypadCard = keypadAnchor.closest(".card");
+    if(!keypadCard) return false;
 
-  function findLast20Card(){
-    const all = Array.from(document.querySelectorAll("h2,h3,div,span"));
-    const hit = all.find(el => {
-      const t = (el.textContent||"").replace(/\s+/g," ").trim().toLowerCase();
-      return t.startsWith("last 20") && t.includes("newest first");
-    });
-    return hit ? closestCard(hit) : null;
-  }
+    // Find the exact "Last 20 (newest first)" title div (it is bold text inside its own card)
+    const titles = Array.from(document.querySelectorAll("div"));
+    const t = titles.find(d => (d.textContent || "").replace(/\s+/g," ").trim() === "Last 20 (newest first)");
+    if(!t) return false;
+    const last20Card = t.closest(".card");
+    if(!last20Card) return false;
 
-  function findKeypadCard(){
-    const all = Array.from(document.querySelectorAll("h2,h3,div,span"));
-    const hit = all.find(el => {
-      const t = (el.textContent||"").replace(/\s+/g," ").trim().toLowerCase();
-      return t === "tap keypad";
-    }) || all.find(el => ((el.textContent||"").toLowerCase().includes("tap keypad")));
-    return hit ? closestCard(hit) : null;
-  }
-
-  function moveBlock(){
-    const keypadCard = findKeypadCard();
-    const last20Card = findLast20Card();
-    if(!keypadCard || !last20Card) return false;
-
+    // Move the whole card (includes Copy/Download/Wheel View) directly after keypad card
     if(last20Card.previousElementSibling !== keypadCard){
       keypadCard.insertAdjacentElement("afterend", last20Card);
     }
     return true;
   }
 
+  // Run a few times (initial render + after any re-render)
   let tries = 0;
-  const tick = () => {
+  const spin = () => {
     tries++;
-    if(moveBlock() || tries >= 80) return;
-    setTimeout(tick, 120);
+    relocate();
+    if(tries < 25) setTimeout(spin, 200);
   };
 
   if(document.readyState === "loading"){
-    document.addEventListener("DOMContentLoaded", tick, { once:true });
+    document.addEventListener("DOMContentLoaded", spin, { once:true });
   } else {
-    tick();
+    spin();
   }
 
-  document.addEventListener("click", () => setTimeout(moveBlock, 50), true);
+  // MutationObserver to re-apply if the render loop re-inserts sections
+  const obs = new MutationObserver(() => relocate());
+  try {
+    obs.observe(document.body, { childList:true, subtree:true });
+  } catch (e) {}
 })();
 
 </script>
