@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.11</title>
+  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.12</title>
   <style>
     :root{color-scheme:dark; --bg:#0b1220; --card:#0f1a2e; --muted:#94a3b8; --txt:#e5e7eb; --accent:#60a5fa; --warn:#fbbf24; --danger:#ef4444; --ok:#34d399; --chip:#111c33; --border:#1f2a44;}
     *{box-sizing:border-box}
@@ -76,8 +76,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.11</div>
-    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.11</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.12</div>
+    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.12</div>
     <div class="sub">Build date: <b>2026-01-09</b>. Tap spins on the keypad. Tracks last 10/15/20: columns, dozens, double-streets, red/black, high/low, even/odd, Junko quadrants. Saves on-device.</div>
 
     <div class="card">
@@ -178,6 +178,12 @@
             <div class="k">Dirty Bird DB‑CDS (last15 no‑green)</div>
             <div class="v mono" id="dbcds">—</div>
             <div class="k" id="dbcds2">—</div>
+          </div>
+
+          <div class="box">
+            <div class="k">12 Soldiers (last15 selection)</div>
+            <div class="v mono" id="soldiers">—</div>
+            <div class="k" id="soldiers2">—</div>
           </div>
 
           <div class="box">
@@ -333,93 +339,6 @@ document.addEventListener('DOMContentLoaded', () => {
   function isLow(n)   { return (n !== "00" && Number(n) >= 1 && Number(n) <= 18); }
   function isEven(n)  { return (n !== "00" && Number(n) !== 0 && Number(n)%2===0); }
   function isOdd(n)   { return (n !== "00" && Number(n)%2===1); }
-
-
-
-// -----------------------------
-// Canonical spin helpers (supports both "00" string and 99 as double-zero)
-// Internal algorithms should prefer numeric 0..36 and 99 for 00 where possible.
-// -----------------------------
-function normalizeSpin(x){
-  const t = String(x).trim();
-  if (t === "00") return 99;
-  const n = Number(t);
-  if (!Number.isFinite(n)) throw new Error(`Invalid spin: ${x}`);
-  if (n < 0 || n > 36) throw new Error(`Out of range spin: ${x}`);
-  return Math.trunc(n);
-}
-function isGreenN(n){ return n === 0 || n === 99; }
-function dozenOfN(n){
-  if (isGreenN(n)) return null;
-  if (n >= 1 && n <= 12) return 1;
-  if (n >= 13 && n <= 24) return 2;
-  if (n >= 25 && n <= 36) return 3;
-  return null;
-}
-function colIndexN(n){
-  if (isGreenN(n)) return null;
-  return ((n - 1) % 3) + 1; // 1,2,3
-}
-function dozenNumbersByColN(dozen, col){
-  const out = [];
-  const start = dozen === 1 ? 1 : dozen === 2 ? 13 : 25;
-  const end   = dozen === 1 ? 12 : dozen === 2 ? 24 : 36;
-  for (let n = start; n <= end; n++){
-    if (colIndexN(n) === col) out.push(n);
-  }
-  return out;
-}
-function countsInWindowNoGreenN(window15){
-  const counts = new Map();
-  for (const n of window15){
-    if (n == null || isGreenN(n)) continue;
-    counts.set(n, (counts.get(n) || 0) + 1);
-  }
-  return counts;
-}
-function spinsSinceLastHitN(window15, candidatesSet){
-  // window15 expected oldest->newest
-  for (let back = 1; back <= window15.length; back++){
-    const n = window15[window15.length - back];
-    if (n != null && !isGreenN(n) && candidatesSet.has(n)) return back;
-  }
-  return 999;
-}
-function selectSoldiersUC(last15Raw){
-  if (!Array.isArray(last15Raw) || last15Raw.length < 15) {
-    throw new Error("selectSoldiersUC requires last 15 spins.");
-  }
-  const last15 = last15Raw.slice(-15).map(normalizeSpin); // oldest->newest
-  const counts = countsInWindowNoGreenN(last15);
-
-  function colScore(dozen, col){
-    const nums = dozenNumbersByColN(dozen, col);
-    const hits = nums.reduce((a, n) => a + (counts.get(n) || 0), 0);
-    const age = spinsSinceLastHitN(last15, new Set(nums));
-    return { hits, age, col, nums };
-  }
-
-  const d1Candidates = [1,2,3].map(c => colScore(1, c));
-  d1Candidates.sort((a,b) => (a.hits - b.hits) || (b.age - a.age) || (a.col - b.col));
-  const d1 = d1Candidates[0];
-
-  const remaining = [1,2,3].filter(c => c !== d1.col);
-  const d2Candidates = remaining.map(c => colScore(2, c));
-  d2Candidates.sort((a,b) => (a.hits - b.hits) || (b.age - a.age) || (a.col - b.col));
-  const d2 = d2Candidates[0];
-
-  const d3Col = [1,2,3].find(c => c !== d1.col && c !== d2.col);
-  const d3 = colScore(3, d3Col);
-
-  return {
-    D1_ColIndex: d1.col, D2_ColIndex: d2.col, D3_ColIndex: d3.col,
-    D1_Numbers: d1.nums, D2_Numbers: d2.nums, D3_Numbers: d3.nums,
-    STAT_D1_DriestColIndex: d1.col,
-    STAT_D1_DriestColNumbers: d1.nums,
-    STAT_D1_DriestColHits_L15: d1.hits,
-    STAT_D1_DriestColSpinsSinceLastHit_L15: d1.age,
-  };
-}
 
   function colOf(n) {
     if (n === "00" || n === 0) return null;
@@ -930,37 +849,46 @@ Session targets (tested)
 - Cashout +20 units
 - Stop-loss −50 units
 - Auto-reset/reselect at +10 units (recompute cold side and restart units)`
-,
-  "12 Soldiers: Unique Columns (12→8 Reset)": `
-**StrategyId:** SOLDIERS_UC_HYBRID_R1  
-**Wheel:** American (0 + 00). Treat 0 and 00 as losses.  
-**Warmup:** 15 spins (selection only; no bets)  
-**Session target / stop:** +20u / -160u  
-**Min coverage:** 8 numbers (never drop below 8)
 
-### Selection (each new session; uses last 15 spins)
-Pick **one unique column index per dozen** (C1/C2/C3 cannot repeat across D1/D2/D3):
-1) **Dozen 1:** choose the driest vertical column of 4 (min hits; tiebreaker = oldest last hit).  
-2) **Dozen 2:** choose the driest among the two remaining columns (cannot reuse D1’s column index).  
-3) **Dozen 3:** use the last unused column.
+    ,
 
-This yields **12 numbers** (4 per dozen).
+    "12 Soldiers — Unique Columns, 12→8 Reset":
+`12 Soldiers — Unique Columns, 12→8 Reset (SOLDIERS_UC_HYBRID_R1)
 
-### Betting
-**Phase A (12 numbers):** bet straight-up on all 12 numbers.  
-- Start unit = 1u  
-- **On loss:** unit += 1 (every loss)  
-- **On hit (if session PnL still < +20):** drop the dozen that hit (12 → 8 numbers), **reset unit to 1u**, enter Phase B
+Wheel
+• American (0+00). Treat 0/00 as losses and never include them in bets.
 
-**Phase B (8 numbers):** bet straight-up on remaining 8 numbers.  
-- **On loss:** +1 unit after every **2 consecutive losses** (loss #2, #4, #6… since last win)  
-- **On hit:** continue normally (coverage stays 8)
+Entry
+• Warmup: log 15 spins (selection only; no bets).
 
-### Reset rules
-- **Cashout:** session PnL ≥ +20u → reselect from latest 15 spins  
-- **Stop-loss:** session PnL ≤ -160u → stop; next session reselect from latest 15 spins
-`
+Selection (new session only; locked for the session)
+Using the last 15 spins (ignore 0/00 for counts):
+1) Dozen 1: pick the driest vertical column-of-4 (min hits; tiebreak = oldest last hit).
+2) Dozen 2: pick the driest among the two remaining column indices (cannot reuse D1’s column index).
+3) Dozen 3: use the last unused column index.
 
+This yields 12 numbers total (4 per dozen).
+
+Bet / Phases
+Phase A (12 numbers)
+• Bet 12 straight-ups.
+• On every loss: unit += 1.
+• On first qualifying hit (and session PnL still < +20): remove the dozen that hit (12→8), reset unit to 1, enter Phase B.
+
+Phase B (8 numbers)
+• Bet the remaining 8 straight-ups.
+• On loss: add +1 unit after every 2 consecutive losses (loss #2, #4, #6... since last hit).
+• On hit: keep same 8; reset consecutive-loss counter to 0 (unit unchanged).
+
+Session targets
+• Cashout: +20u
+• Stoploss: −160u
+
+Tracker UI
+• The tracker shows the current last-15 selection and D1 “driest” stats under Trend + tracking.`
+
+
+  };
 
   function openExplain(title, body) {
     $("expTitle").textContent = title || "Strategy details";
@@ -1303,8 +1231,7 @@ This yields **12 numbers** (4 per dozen).
 // CASH is eligible only if the chosen CASH strategy is #1 overall AND score >= 85.
 const CASH_PRIORITY = [
   "Moon Dance 2S/Dozen (Junko Base)",
-  "12 Soldiers: Unique Columns (12→8 Reset)",
-
+  "12 Soldiers — Unique Columns, 12→8 Reset",
   "Trinity–Junko v2",
   "Opposite-Segment Contrarian (Option 1)",
   "Corners + Double Streets (Follow-the-Leader)",
@@ -1478,52 +1405,6 @@ function scoreMoonDance(vals){
   }).join(" • ");
   return {score, why:`Least-hit streets identified per dozen (18-number coverage).`, numbers: nums, md_picks: md.picks, md_pickDetail: md.pickDetail, md_counts: md.counts, betText, detail};
 }
-
-
-
-function scoreSoldiersUniqueColumns(vals){
-  // Uses the approved SOLDIERS_UC_HYBRID_R1 selection contract.
-  // Window: last 15 spins (selection-only), ignore greens (0 / 00).
-  if (!vals || vals.length < 15) return { score: 0, why: "Need 15 spins." };
-
-  // vals is newest->oldest in this app; selection helper expects oldest->newest.
-  const last15_oldestToNewest = vals.slice(0,15).reverse();
-
-  let sel;
-  try {
-    sel = selectSoldiersUC(last15_oldestToNewest);
-  } catch (e) {
-    return { score: 0, why: "Selection error.", error: String(e) };
-  }
-
-  const numbers = [...sel.D1_Numbers, ...sel.D2_Numbers, ...sel.D3_Numbers];
-
-  // Simple strength heuristic for ranking:
-  // Lower D1 hits in L15 => slightly higher score (col is "drier").
-  const d1Hits = sel.STAT_D1_DriestColHits_L15 ?? 0;
-  const bonus = Math.max(0, 4 - Math.min(4, d1Hits)) * 3; // 0..12
-  const score = 78 + bonus;
-
-  const why =
-    `12 Soldiers UC: D1 col${sel.D1_ColIndex} hits=${d1Hits}/15 age=${sel.STAT_D1_DriestColSpinsSinceLastHit_L15}`;
-
-  return {
-    score,
-    why,
-    numbers,
-    meta: {
-      StrategyId: "SOLDIERS_UC_HYBRID_R1",
-      D1_ColIndex: sel.D1_ColIndex,
-      D2_ColIndex: sel.D2_ColIndex,
-      D3_ColIndex: sel.D3_ColIndex,
-      STAT_D1_DriestColIndex: sel.STAT_D1_DriestColIndex,
-      STAT_D1_DriestColNumbers: sel.STAT_D1_DriestColNumbers,
-      STAT_D1_DriestColHits_L15: sel.STAT_D1_DriestColHits_L15,
-      STAT_D1_DriestColSpinsSinceLastHit_L15: sel.STAT_D1_DriestColSpinsSinceLastHit_L15,
-    }
-  };
-}
-
 
 
   
@@ -1998,8 +1879,28 @@ function scoreStrategies(vals) {
 
   const md = safe("Moon Dance 2S/Dozen (Junko Base)", () => scoreMoonDance(vals));
   if(md) add("Moon Dance 2S/Dozen (Junko Base)", md.score, md.why, {numbers: md.numbers});
-  const soldiers = safe("12 Soldiers: Unique Columns (12→8 Reset)", () => scoreSoldiersUniqueColumns(vals));
-  if(soldiers) add("12 Soldiers: Unique Columns (12→8 Reset)", soldiers.score, soldiers.why, {numbers: soldiers.numbers});
+
+  // 12 Soldiers — Unique Columns, 12→8 Reset (selection + score)
+  const sld = safe("12 Soldiers — Unique Columns, 12→8 Reset", () => {
+    const st = soldiersStatsLast15(vals);
+    if(!st.ok) return {score:0, why: st.msg || "Need 15 spins.", numbers: []};
+    const last15 = vals.slice(0,15).reverse(); // oldest->newest
+    const counts = new Map();
+    for(const x of last15){
+      const n = soldiersNormalizeSpin(x);
+      if(n == null || soldiersIsGreen(n)) continue;
+      counts.set(n, (counts.get(n)||0)+1);
+    }
+    const nums = [...st.D1_Numbers, ...st.D2_Numbers, ...st.D3_Numbers];
+    const totalHits = nums.reduce((a,n)=>a+(counts.get(n)||0),0);
+    const age = st.STAT_D1_DriestColSpinsSinceLastHit_L15;
+    // Heuristic: colder selection (fewer hits) + older D1 column => higher score.
+    let score = 99 - (totalHits*3) + Math.min(8, Math.max(0, age-4));
+    score = Math.max(70, Math.min(99, score));
+    const why = `12-number cold column grid. Total hits L15=${totalHits}; D1 age=${age}.`;
+    return {score, why, numbers: nums};
+  });
+  if(sld) add("12 Soldiers — Unique Columns, 12→8 Reset", sld.score, sld.why, {numbers: sld.numbers});
   const tr = safe("Trinity–Junko v2", () => scoreTrinity(vals));
   if(tr) add("Trinity–Junko v2", tr.score, tr.why, {numbers: tr.numbers});
   const os = safe("Opposite-Segment Contrarian (Option 1)", () => scoreOppSeg(vals));
@@ -2173,6 +2074,98 @@ function dbcdsStatsLast15NoGreen(spinsChrono){
   return {ok:true, dzCounts, coldDozen:cold, exclude:excl, bet10:bet.slice(0,10), gap:minMax};
 }
 
+// 12 Soldiers — Unique Columns selection (stats-only for tracker UI)
+function soldiersNormalizeSpin(x){
+  const s = String(x).trim();
+  if (s === "00") return "00";
+  const n = Number(s);
+  if (!Number.isFinite(n)) throw new Error(`Invalid spin: ${x}`);
+  if (n < 0 || n > 36) throw new Error(`Out of range spin: ${x}`);
+  return Math.trunc(n);
+}
+
+function soldiersIsGreen(n){
+  return n===0 || n==="00";
+}
+
+function soldiersColIndex(n){
+  if (soldiersIsGreen(n)) return null;
+  return ((n - 1) % 3) + 1;
+}
+
+function soldiersDozenNumbersByCol(dozen, col){
+  const out=[];
+  const start = dozen===1 ? 1 : dozen===2 ? 13 : 25;
+  const end   = dozen===1 ? 12 : dozen===2 ? 24 : 36;
+  for (let n=start;n<=end;n++) if (soldiersColIndex(n)===col) out.push(n);
+  return out; // 4
+}
+
+function soldiersCountsInWindowNoGreen(window15){
+  const counts = new Map();
+  for (const n of window15){
+    if (n==null || soldiersIsGreen(n)) continue;
+    counts.set(n, (counts.get(n)||0)+1);
+  }
+  return counts;
+}
+
+function soldiersSpinsSinceLastHit(window15OldestToNewest, candidatesSet){
+  for (let back=1; back<=window15OldestToNewest.length; back++){
+    const n = window15OldestToNewest[window15OldestToNewest.length - back];
+    if (n!=null && !soldiersIsGreen(n) && candidatesSet.has(n)) return back;
+  }
+  return 999;
+}
+
+function selectSoldiersUC(last15RawOldestToNewest){
+  if (!Array.isArray(last15RawOldestToNewest) || last15RawOldestToNewest.length < 15) {
+    throw new Error("selectSoldiersUC requires last 15 spins.");
+  }
+  const last15 = last15RawOldestToNewest.map(soldiersNormalizeSpin);
+  const counts = soldiersCountsInWindowNoGreen(last15);
+  function colScore(dozen, col){
+    const nums = soldiersDozenNumbersByCol(dozen, col);
+    const hits = nums.reduce((a,n)=>a+(counts.get(n)||0), 0);
+    const age = soldiersSpinsSinceLastHit(last15, new Set(nums));
+    return {hits, age, col, nums};
+  }
+  const d1Candidates=[1,2,3].map(c=>colScore(1,c));
+  d1Candidates.sort((a,b)=>(a.hits-b.hits)||(b.age-a.age)||(a.col-b.col));
+  const d1=d1Candidates[0];
+  const remaining=[1,2,3].filter(c=>c!==d1.col);
+  const d2Candidates=remaining.map(c=>colScore(2,c));
+  d2Candidates.sort((a,b)=>(a.hits-b.hits)||(b.age-a.age)||(a.col-b.col));
+  const d2=d2Candidates[0];
+  const d3Col=[1,2,3].find(c=>c!==d1.col && c!==d2.col);
+  const d3=colScore(3,d3Col);
+  return {
+    D1_ColIndex: d1.col,
+    D2_ColIndex: d2.col,
+    D3_ColIndex: d3.col,
+    D1_Numbers: d1.nums,
+    D2_Numbers: d2.nums,
+    D3_Numbers: d3.nums,
+    STAT_D1_DriestColIndex: d1.col,
+    STAT_D1_DriestColNumbers: d1.nums,
+    STAT_D1_DriestColHits_L15: d1.hits,
+    STAT_D1_DriestColSpinsSinceLastHit_L15: d1.age,
+  };
+}
+
+function soldiersStatsLast15(recentNewestFirst){
+  if (!Array.isArray(recentNewestFirst) || recentNewestFirst.length < 15) {
+    return {ok:false, need:15, have:(recentNewestFirst||[]).length};
+  }
+  try{
+    const last15Oldest = recentNewestFirst.slice(0,15).slice().reverse();
+    const sel = selectSoldiersUC(last15Oldest);
+    return {ok:true, sel};
+  }catch(e){
+    return {ok:false, err:String(e && e.message ? e.message : e)};
+  }
+}
+
 /* === RENDER LOOP (LOCKED) — DO NOT EDIT === */
 
 function render() {
@@ -2254,6 +2247,16 @@ function render() {
     }else{
       $("dbcds").textContent = `Need 15 non‑green; have ${db.have}`;
       $("dbcds2").textContent = "—";
+    }
+
+    // 12 Soldiers selection stats (last 15 spins)
+    const sld = soldiersStatsLast15(recent);
+    if(sld.ok){
+      $("soldiers").textContent = `D1 C${sld.D1_ColIndex} | D2 C${sld.D2_ColIndex} | D3 C${sld.D3_ColIndex}`;
+      $("soldiers2").textContent = `D1 nums: ${sld.D1_Numbers.join(",")} • hits ${sld.STAT_D1_DriestColHits_L15} • age ${sld.STAT_D1_DriestColSpinsSinceLastHit_L15}`;
+    }else{
+      $("soldiers").textContent = `Need 15 spins; have ${sld.have}`;
+      $("soldiers2").textContent = "—";
     }
 
 
