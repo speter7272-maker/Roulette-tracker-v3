@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.21</title>
+  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.22</title>
   <style>
     :root{color-scheme:dark; --bg:#0b1220; --card:#0f1a2e; --muted:#94a3b8; --txt:#e5e7eb; --accent:#60a5fa; --warn:#fbbf24; --danger:#ef4444; --ok:#34d399; --chip:#111c33; --border:#1f2a44;}
     *{box-sizing:border-box}
@@ -76,8 +76,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.21</div>
-    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.21</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.22</div>
+    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.22</div>
     <div class="sub">Build date: <b>2026-01-09</b>. Tap spins on the keypad. Tracks last 10/15/20: columns, dozens, double-streets, red/black, high/low, even/odd, Junko quadrants. Saves on-device.</div>
 
     <div class="card">
@@ -2235,29 +2235,24 @@ function soldiersStatsLast15(recentNewestFirst){
    - Optional Freeze/Active toggle; auto-resets after 2 distinct frozen hits
    ========================================================= */
 
-// Non-overlapping corner *set* (12 corners only)
-// Corners available: 1/5, 7/11, 13/17, 19/23, 25/29, 31/35, 2/6, 8/12, 14/18, 20/24, 26/30, 32/36
-// Note: the *displayed* Top-5 is additionally filtered to be non-overlapping (no shared numbers).
+// Standard 22 corners on the layout (1..36)
 const CORNERS = [
-  [1, 2, 4, 5],
-  [7, 8, 10, 11],
-  [13, 14, 16, 17],
-  [19, 20, 22, 23],
-  [25, 26, 28, 29],
-  [31, 32, 34, 35],
-  [2, 3, 5, 6],
-  [8, 9, 11, 12],
-  [14, 15, 17, 18],
-  [20, 21, 23, 24],
-  [26, 27, 29, 30],
-  [32, 33, 35, 36],
-].map(a => a.slice().sort((x, y) => x - y));
+  // Non-overlapping 12-corner system (two vertical “lanes” of 6 corners each)
+  [1, 2, 4, 5],    // 1/5
+  [7, 8, 10, 11],  // 7/11
+  [13, 14, 16, 17],// 13/17
+  [19, 20, 22, 23],// 19/23
+  [25, 26, 28, 29],// 25/29
+  [31, 32, 34, 35],// 31/35
 
-function cornersOverlap(aNums, bNums) {
-  const s = new Set(aNums);
-  for (const n of bNums) if (s.has(n)) return true;
-  return false;
-}
+  [2, 3, 5, 6],    // 2/6
+  [8, 9, 11, 12],  // 8/12
+  [14, 15, 17, 18],// 14/18
+  [20, 21, 23, 24],// 20/24
+  [26, 27, 29, 30],// 26/30
+  [32, 33, 35, 36] // 32/36
+].map(c => c.slice().sort((a,b)=>a-b));
+
 
 function cornerId(nums){
   return nums.slice().sort((a,b)=>a-b).join(",");
@@ -2280,7 +2275,6 @@ function cornerAgeToFlag(age){
   return "GREEN";
 }
 function cornerSetFlag(top5){
-  if (!top5 || top5.length === 0) return "GREEN";
   const maxAge = Math.max(...top5.map(c => (c.since==null ? 999999 : c.since)));
   return cornerAgeToFlag(maxAge);
 }
@@ -2345,9 +2339,17 @@ function computeRunningDriest5(spinsInSession){
     if (chosen.length >= 5) break;
   }
 
-  // Display ONLY non-overlapping corners. If fewer than 5 are available, show fewer.
-  const top5 = chosen;
-  const line = top5.length ? top5.map((c)=>c.display).join(" / ") : "—";
+  // If (rare) we can't get 5 non-overlapping (shouldn't happen), pad with remaining driest.
+  if (chosen.length < 5){
+    for (const c of stats){
+      if (chosen.find(x=>x.id===c.id)) continue;
+      chosen.push(c);
+      if (chosen.length >= 5) break;
+    }
+  }
+
+  const top5 = chosen.slice(0,5);
+  const line = top5.map((c)=>c.display).join(" / ");
   return { top5, line, setFlag: setFlagFromTop5(top5) };
 }
 
@@ -2402,7 +2404,8 @@ let cornerLastProcessedSpinKey = null; // to avoid double-processing per render
 function activateCornerFreeze(snapshot){
   const hitIds = {};
   for (const c of snapshot.top5) hitIds[c.id] = false;
-  cornerFreeze = { isActive:true, frozen:snapshot.top5, hitCount:0, hitIds };
+  // IMPORTANT: return the new state (do NOT mutate global here)
+  return { isActive:true, frozen:snapshot.top5, hitCount:0, hitIds };
 }
 /* === RENDER LOOP (LOCKED) — DO NOT EDIT === */
 
