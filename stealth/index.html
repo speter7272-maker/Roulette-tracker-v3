@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.19</title>
+  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.20</title>
   <style>
     :root{color-scheme:dark; --bg:#0b1220; --card:#0f1a2e; --muted:#94a3b8; --txt:#e5e7eb; --accent:#60a5fa; --warn:#fbbf24; --danger:#ef4444; --ok:#34d399; --chip:#111c33; --border:#1f2a44;}
     *{box-sizing:border-box}
@@ -76,8 +76,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.19</div>
-    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.19</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.20</div>
+    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.20</div>
     <div class="sub">Build date: <b>2026-01-09</b>. Tap spins on the keypad. Tracks last 10/15/20: columns, dozens, double-streets, red/black, high/low, even/odd, Junko quadrants. Saves on-device.</div>
 
     <div class="card">
@@ -1121,7 +1121,7 @@ Tracker UI
     try {
       const nn = (k === "00") ? 99 : Number(k);
       if (Number.isFinite(nn)) {
-        cornerFreeze = updateCornerFreezeOnSpin(cornerFreeze, nn);
+        cornerFreeze = updateCornerFreezeOnSpin(cornerFreeze, nn).next;
       }
     } catch(e) {}
     if (spins.length > 5000) spins = spins.slice(0, 5000);
@@ -2280,60 +2280,125 @@ function cornerSetFlag(top5){
   return cornerAgeToFlag(maxAge);
 }
 
-function computeRunningDriest5(sessionSpinsOldestToNewest){
+function computeRunningDriest5(spinsInSession){
+  // Running totals, then choose TOP-5 driest *non-overlapping* corners.
+  // Sorting: lowest hit-count first; tiebreaker: larger "since" (older last hit) first.
   const counts = new Map();
-  const lastHitIdx = new Map();
+  const lastHitIdx = new Map(); // cornerId -> last hit spin index in session
+
   for (const c of CORNERS) counts.set(cornerId(c), 0);
 
-  for (let i=0; i<sessionSpinsOldestToNewest.length; i++){
-    const s = sessionSpinsOldestToNewest[i];
-    if (s===0 || s===99) continue;
+  for (let i = 0; i < spinsInSession.length; i++){
+    const s = spinsInSession[i];
+    if (s === 0 || s === 99) continue; // greens never hit corners
     for (const corner of CORNERS){
       if (corner.includes(s)){
         const id = cornerId(corner);
-        counts.set(id, (counts.get(id)||0) + 1);
+        counts.set(id, (counts.get(id) || 0) + 1);
         lastHitIdx.set(id, i);
       }
     }
   }
 
-  const nowIdx = sessionSpinsOldestToNewest.length - 1;
-  const stats = CORNERS.map(corner => {
+  const nowIdx = spinsInSession.length - 1;
+
+  const stats = CORNERS.map((corner)=>{
     const id = cornerId(corner);
     const label = cornerShortLabel(corner);
-    const count = counts.get(id) || 0;
+    const cnt = counts.get(id) || 0;
     const lh = lastHitIdx.get(id);
-    const since = (lh==null ? null : nowIdx - lh);
-    const flag = cornerAgeToFlag(since);
+    // If never hit this session, treat as "very dry": since = spinsInSession.length (not "NA")
+    const since = (lh == null) ? spinsInSession.length : (nowIdx - lh);
+    const flag = ageToFlag(since);
     return {
       id,
       label,
       nums: corner,
-      count,
+      count: cnt,
       since,
       flag,
-      display: `${label} (${since==null ? "NA" : since})`,
+      display: `${label} (${since})`,
     };
   });
 
   stats.sort((a,b)=>{
-    if (a.count !== b.count) return a.count - b.count;
-    const aSince = a.since==null ? 999999 : a.since;
-    const bSince = b.since==null ? 999999 : b.since;
-    return bSince - aSince;
+    if (a.count !== b.count) return a.count - b.count;        // driest = lowest count
+    return b.since - a.since;                                  // older last hit first
   });
 
-  const top5 = stats.slice(0,5);
-  return {
-    top5,
-    line: top5.map(c=>c.display).join(" / "),
-    setFlag: cornerSetFlag(top5),
-  };
+  // Non-overlap greedy pick: walk driest→wettest and keep corners that share no numbers.
+  const chosen = [];
+  const usedNums = new Set();
+  for (const c of stats){
+    let overlaps = false;
+    for (const n of c.nums){
+      if (usedNums.has(n)){ overlaps = true; break; }
+    }
+    if (overlaps) continue;
+    chosen.push(c);
+    for (const n of c.nums) usedNums.add(n);
+    if (chosen.length >= 5) break;
+  }
+
+  // If (rare) we can't get 5 non-overlapping (shouldn't happen), pad with remaining driest.
+  if (chosen.length < 5){
+    for (const c of stats){
+      if (chosen.find(x=>x.id===c.id)) continue;
+      chosen.push(c);
+      if (chosen.length >= 5) break;
+    }
+  }
+
+  const top5 = chosen.slice(0,5);
+  const line = top5.map((c)=>c.display).join(" / ");
+  return { top5, line, setFlag: setFlagFromTop5(top5) };
 }
 
 function initCornerFreeze(){
   return { isActive:false, frozen:[], hitCount:0, hitIds:{} };
 }
+
+function activateCornerFreeze(state, snapshot){
+  const hitIds = {};
+  for (const c of snapshot.top5) hitIds[c.id] = false;
+  return { isActive:true, frozen:snapshot.top5, hitCount:0, hitIds };
+}
+
+function deactivateCornerFreeze(){
+  return initCornerFreeze();
+}
+
+function updateCornerFreezeOnSpin(state, spin){
+  if (!state || !state.isActive){
+    return { next: state || initCornerFreeze(), resetTriggered:false, hitThisSpin:[] };
+  }
+
+  const hitThisSpin = [];
+  for (const c of state.frozen){
+    if (state.hitIds[c.id]) continue;
+    if (cornerHit(c.nums, spin)) hitThisSpin.push(c.id);
+  }
+
+  if (hitThisSpin.length === 0){
+    return { next: state, resetTriggered:false, hitThisSpin };
+  }
+
+  let hitCount = state.hitCount;
+  const hitIds = { ...state.hitIds };
+  for (const id of hitThisSpin){
+    if (!hitIds[id]){
+      hitIds[id] = true;
+      hitCount += 1;
+    }
+  }
+
+  if (hitCount >= 2){
+    return { next: deactivateCornerFreeze(), resetTriggered:true, hitThisSpin };
+  }
+
+  return { next: { ...state, hitCount, hitIds }, resetTriggered:false, hitThisSpin };
+}
+
 let cornerFreeze = initCornerFreeze();
 let cornerLastProcessedSpinKey = null; // to avoid double-processing per render
 
@@ -2342,33 +2407,6 @@ function activateCornerFreeze(snapshot){
   for (const c of snapshot.top5) hitIds[c.id] = false;
   cornerFreeze = { isActive:true, frozen:snapshot.top5, hitCount:0, hitIds };
 }
-function deactivateCornerFreeze(){
-  cornerFreeze = initCornerFreeze();
-}
-
-function updateCornerFreezeOnSpin(spin){
-  if (!cornerFreeze.isActive) return { resetTriggered:false, hitThisSpin:[] };
-  const hitThisSpin = [];
-  for (const c of cornerFreeze.frozen){
-    if (cornerFreeze.hitIds[c.id]) continue;
-    if (cornerHit(c.nums, spin)) hitThisSpin.push(c.id);
-  }
-  if (!hitThisSpin.length) return { resetTriggered:false, hitThisSpin };
-
-  const hitIds = { ...cornerFreeze.hitIds };
-  let hitCount = cornerFreeze.hitCount;
-  for (const id of hitThisSpin){
-    hitIds[id] = true;
-    hitCount += 1;
-  }
-  if (hitCount >= 2){
-    deactivateCornerFreeze();
-    return { resetTriggered:true, hitThisSpin };
-  }
-  cornerFreeze = { ...cornerFreeze, hitIds, hitCount };
-  return { resetTriggered:false, hitThisSpin };
-}
-
 /* === RENDER LOOP (LOCKED) — DO NOT EDIT === */
 
 function render() {
