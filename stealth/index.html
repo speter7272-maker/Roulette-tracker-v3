@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.26</title>
+  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.27</title>
   <style>
     :root{color-scheme:dark; --bg:#0b1220; --card:#0f1a2e; --muted:#94a3b8; --txt:#e5e7eb; --accent:#60a5fa; --warn:#fbbf24; --danger:#ef4444; --ok:#34d399; --chip:#111c33; --border:#1f2a44;}
     *{box-sizing:border-box}
@@ -76,8 +76,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.26</div>
-    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.26</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.27</div>
+    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.27</div>
     <div class="sub">Build date: <b>2026-01-09</b>. Tap spins on the keypad. Tracks last 10/15/20: columns, dozens, double-streets, red/black, high/low, even/odd, Junko quadrants. Saves on-device.</div>
 
     <div class="card">
@@ -2275,11 +2275,14 @@ function cornerHit(nums, spin){
     { id: "32/36", nums: [32,33,35,36] },
   ];
 
-  // number -> cornerId (unique, because corners are non-overlapping)
-  const NUM_TO_CORNER_ID = (() => {
+  // number -> cornerIds (NOTE: corners can share numbers; a hit can reset multiple corners)
+  const NUM_TO_CORNERS = (() => {
     const m = new Map();
     for (const c of NON_OVERLAP_CORNERS_12) {
-      for (const n of c.nums) m.set(n, c.id);
+      for (const n of c.nums) {
+        if (!m.has(n)) m.set(n, []);
+        m.get(n).push(c.id);
+      }
     }
     return m;
   })();
@@ -2290,25 +2293,26 @@ function cornerHit(nums, spin){
   }
 
   function computeCornersStatsFromSpins(spins){
-    // NOTE: spins[] is stored NEWEST-FIRST in this tracker.
-    // "age" (spins since last hit) is therefore the index of the most recent hit.
+    // spins are newest-first
     const len = spins.length;
+
+    // stats keyed by corner id
     const stats = new Map();
-    for (const c of NON_OVERLAP_CORNERS_12) {
-      stats.set(c.id, { id: c.id, nums: c.nums, hits: 0, lastHitIdx: null });
+    for (const c of NON_OVERLAP_CORNERS_12){
+      stats.set(c.id, { nums: c.nums, hits: 0, lastHitIdx: null });
     }
 
     for (let i=0;i<len;i++){
       const n0 = normalizeSpinNumber(spins[i]);
-      // ignore greens for corner tracking
-      if (n0 === 0 || n0 === 99) continue;
-      const cid = NUM_TO_CORNER_ID.get(n0);
-      if (!cid) continue;
-      const s = stats.get(cid);
-      if (!s) continue;
-      s.hits += 1;
-      // first time we see it (closest to newest) is the most recent hit
-      if (s.lastHitIdx === null) s.lastHitIdx = i;
+      const cids = NUM_TO_CORNERS.get(n0) || [];
+      if (!cids.length) continue;
+      for (const cid of cids){
+        const s = stats.get(cid);
+        if (!s) continue;
+        s.hits += 1;
+        // first time we see it while scanning newest->oldest is the most recent hit
+        if (s.lastHitIdx === null) s.lastHitIdx = i;
+      }
     }
 
     const out = [];
@@ -2373,9 +2377,10 @@ function cornerHit(nums, spin){
     for (let i=prevCount; i<spins.length; i++){
       const n0 = normalizeSpinNumber(spins[i]);
       if (n0 === 0 || n0 === 99) continue;
-      const cid = NUM_TO_CORNER_ID.get(n0);
+      const cids = NUM_TO_CORNERS.get(n0) || [];
       if (!cid) continue;
-      if (st.frozen.includes(cid)) {
+      // number can hit multiple corners
+    if (cids.some(cid => st.frozen.includes(cid))) {
         st.hitCount = (st.hitCount||0) + 1;
         if (st.hitCount >= 2) {
           st = resetCornerFreeze();
