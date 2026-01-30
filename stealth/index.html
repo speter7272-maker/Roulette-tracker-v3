@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.28</title>
+  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.29</title>
   <style>
     :root{color-scheme:dark; --bg:#0b1220; --card:#0f1a2e; --muted:#94a3b8; --txt:#e5e7eb; --accent:#60a5fa; --warn:#fbbf24; --danger:#ef4444; --ok:#34d399; --chip:#111c33; --border:#1f2a44;}
     *{box-sizing:border-box}
@@ -76,8 +76,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.28</div>
-    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.28</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.29</div>
+    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.29</div>
     <div class="sub">Build date: <b>2026-01-09</b>. Tap spins on the keypad. Tracks last 10/15/20: columns, dozens, double-streets, red/black, high/low, even/odd, Junko quadrants. Saves on-device.</div>
 
     <div class="card">
@@ -2248,9 +2248,11 @@ function cornerShortLabel(nums){
   return `${s[0]}/${s[s.length-1]}`;
 }
 function cornerHit(nums, spin){
-  if (spin===0 || spin===99) return false;
-  return nums.includes(spin);
-}
+      const sn = normalizeSpinNumber(spin);
+      if (sn===null) return false;
+      if (sn===0 || sn===99) return false;
+      return nums.includes(sn);
+    }
 
   // ================================
   // Driest 5 Corners (running — 12 non-overlapping corners)
@@ -2392,9 +2394,9 @@ function cornerHit(nums, spin){
       const n0 = normalizeSpinNumber(spins[i]);
       if (n0 === 0 || n0 === 99) continue;
       const cids = NUM_TO_CORNERS.get(n0) || [];
-      if (!cid) continue;
+      if (!cids || cids.length===0) continue;
       // number can hit multiple corners
-    if (cids.some(cid => st.frozen.includes(cid))) {
+      if (cids.some(cid => st.frozen.includes(cid))) {
         st.hitCount = (st.hitCount||0) + 1;
         if (st.hitCount >= 2) {
           st = resetCornerFreeze();
@@ -2555,8 +2557,6 @@ function render() {
     try {
       const sesSpins = spins
         .filter(x => x.s === sessionId)
-        .slice()
-        .reverse() // newest-first
         .map(x => (x.n === "00") ? 99 : Number(x.n))
         .filter(n => Number.isFinite(n));
 
