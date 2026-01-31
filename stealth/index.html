@@ -220,8 +220,7 @@
           <div class="box"><div class="k">Red / Black</div><div class="v mono" id="rb">0 / 0</div></div>
           <div class="box"><div class="k">High / Low</div><div class="v mono" id="hl">0 / 0</div></div>
           <div class="box"><div class="k">Even / Odd</div><div class="v mono" id="eo">0 / 0</div></div>
-          <div class="box"><div class="row" style="justify-content:space-between;align-items:center;gap:10px"><div class="k">Junko quadrants</div><button class="btn small" type="button" onclick="openJunkoSectorsExplain()">Explain</button></div><div class="v mono" id="junko">GN 0 | HO 0 | LO 0 | M 0</div>
-        <div class="small mono" id="junkoBets" style="margin-top:8px; opacity:.9;"></div></div>
+          <div class="box"><div class="k" style="display:flex;align-items:center;justify-content:space-between;gap:8px;"><span>Junko quadrants</span><button class="btn small" type="button" onclick="openJunkoSectorsExplain()">Explain</button></div><div class="v mono" id="junko"></div><div class="sub mono" id="junkoSectors" style="margin-top:6px;opacity:.9;font-size:12px;line-height:1.25;"></div></div>
         </div>
 
         <div class="hr"></div>
@@ -941,24 +940,9 @@ Tracker UI
   on("expBackdrop", "click", closeExplain);
 
 function openJunkoSectorsExplain(){
-  const gn = [...JUNKO_SECTORS.GN].sort((a,b)=>a-b).join(", ");
-  const ho = [...JUNKO_SECTORS.HO].sort((a,b)=>a-b).join(", ");
-  const lo = [...JUNKO_SECTORS.LO].sort((a,b)=>a-b).join(", ");
-  const m  = [...JUNKO_SECTORS.M ].sort((a,b)=>a-b).join(", ");
-
-  const body = `
-    <div class="mono" style="line-height:1.5;">
-      <div><b>GN</b>: ${gn}</div>
-      <div><b>HO</b>: ${ho}</div>
-      <div><b>LO</b>: ${lo}</div>
-      <div><b>M</b>: ${m}</div>
-      <div style="margin-top:10px; opacity:.9;">
-        These are the fixed Junko quadrant sector groupings used by the tracker.
-        “Bet numbers” = all numbers in that sector.
-      </div>
-    </div>
-  `;
-  openExplain("Junko sectors — bet numbers", body);
+  const order = ["GN","HO","LO","M"];
+  const lines = order.filter(k => JUNKO_SECTORS[k]).map(k => `${k}: ${JUNKO_SECTORS[k].join(", ")}`).join("\n");
+  openExplain("Junko sector numbers", `Numbers to bet by sector:\n${lines}\n\n(Each sector is a fixed number-set used by the Junko quadrant logic.)`);
 }
 
 
@@ -971,168 +955,7 @@ function openJunkoSectorsExplain(){
   }
 
   function save() {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        spins, windowN, sessionId, casino: $("casinoInput").value || ""
-      }));
-    } catch(_) {}
-  }
-
-  function load() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if(!raw) return;
-      const obj = JSON.parse(raw);
-      if(Array.isArray(obj.spins)) {
-        spins = obj.spins.map(x => {
-          if(!x) return null;
-          if(typeof x === "string" || typeof x === "number") return {n:numToKey(x), t:Date.now(), s:1};
-          return {n:numToKey(x.n), t:Number(x.t)||Date.now(), s:Number(x.s)||1};
-        }).filter(x => x && x.n!==null);
-      }
-      if([10,15,20].includes(obj.windowN)) windowN = obj.windowN;
-      if(Number.isFinite(obj.sessionId)) sessionId = Number(obj.sessionId);
-      if(typeof obj.casino === "string") $("casinoInput").value = obj.casino;
-    } catch(_) {}
-  }
-
-  function windowValues() {
-    return spins.slice(0, windowN).map(x => x.n);
-  }
-
-  /* === KEYPAD MODULE (LOCKED) — DO NOT EDIT === */
-
-  function buildKeypad() {
-    const kbd = $("kbd");
-    if (!kbd) return;
-
-    // Debug counter (visible on-page)
-    if (!window.__kpCount) window.__kpCount = 0;
-
-    const keys = ["00",0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36];
-    kbd.innerHTML = "";
-
-    const fire = (k) => {
-      // Prevent accidental double-fire on iOS (click after touch)
-      const now = Date.now();
-      if (!window.__kpLastTap) window.__kpLastTap = 0;
-      if (now - window.__kpLastTap < 300) return;
-      window.__kpLastTap = now;
-
-      window.__kpCount += 1;
-      const dbg = $("kpDebug");
-      if (dbg) dbg.textContent = "Keypad taps: " + window.__kpCount;
-
-      addSpin(k);
-    };
-
-    keys.forEach(k => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "key";
-      b.style.touchAction = "manipulation";  // iOS: favor taps
-      b.style.webkitTouchCallout = "none";
-      b.style.webkitUserSelect = "none";
-
-      if (k === "00") b.className += " zero";
-      if (k === 0) b.className += " green";
-      b.textContent = String(k);
-
-      // Most reliable: direct property handlers (less iOS weirdness than addEventListener)
-      b.onclick = (e) => { if(e) e.preventDefault(); fire(k); };
-      b.onpointerup = (e) => { if(e){ try{e.preventDefault();}catch(_){} } fire(k); };
-      b.ontouchstart = (e) => { if(e){ try{e.preventDefault();}catch(_){} } };
-      b.ontouchend = (e) => { if(e){ e.preventDefault(); e.stopPropagation(); } fire(k); };
-
-      kbd.appendChild(b);
-    });
-
-    // Container-level fallback (in case a browser drops per-button handlers)
-    if (!kbd.__delegated) {
-      kbd.__delegated = true;
-      kbd.addEventListener("click", (e) => {
-        const t = e.target;
-        if (!t || !t.classList || !t.classList.contains("key")) return;
-        const raw = (t.textContent || "").trim();
-        if (!raw) return;
-        fire(raw === "00" ? "00" : Number(raw));
-      }, {capture:true});
-    }
-  }
-
-
-  function addSpin(val) {
-    const k = numToKey(val);
-    if (k===null) return;
-
-    // Settle any pending hedge bet (it was placed for THIS spin)
-    if (gsah.pending) {
-      const hitGreen = isGreen(k);
-      const uBet = Number.isFinite(gsah.pendingU) ? gsah.pendingU : (Number.isFinite(gsah.u) ? gsah.u : 1);
-
-      if (hitGreen) {
-        // +17u net on split hit
-        gsah.pnlU += (17 * uBet);
-        gsah.u = 1;
-        gsah.lossCount = 0;
-        gsah.betSpins = 0;
-        gsah.state = "OFF";
-        gsah.cooldown = false;
-        gsah.offReason = "Green hit — reset";
-        gdc = 0;
-      } else {
-        gsah.pnlU += (-1 * uBet);
-        gsah.lossCount += 1;
-        gsah.betSpins += 1;
-
-        // 1/4 linear progression
-        if (gsah.lossCount % 4 === 0) {
-          gsah.u = Math.min(6, (Number.isFinite(gsah.u) ? gsah.u : 1) + 1);
-        }
-
-        // Safety budget
-        if (gsah.pnlU <= -12) {
-          gsah.state = "OFF";
-          gsah.cooldown = true;
-          gsah.offReason = "Safety budget hit (≤ −12u)";
-        }
-
-        // Time cap: 15 hedge bet-spins without green hit
-        if (gsah.state !== "OFF" && gsah.betSpins >= 15) {
-          gsah.state = "OFF";
-          gsah.cooldown = true;
-          gsah.offReason = "15 hedge bets w/o green";
-        }
-
-        // Cap rule: if at u=6 and completed another full 4-loss cycle, turn off
-        if (gsah.state !== "OFF" && gsah.u >= 6 && (gsah.lossCount % 4 === 0)) {
-          gsah.state = "OFF";
-          gsah.cooldown = true;
-          gsah.offReason = "U6 full loss cycle";
-        }
-      }
-
-      gsah.pending = false;
-    }
-
-    // Update green drought counter (if not already reset by hedge win)
-    if (isGreen(k)) {
-      gdc = 0;
-      gsah.cooldown = false;
-    } else {
-      gdc = (Number.isFinite(gdc) ? gdc : 0) + 1;
-    }
-
-    spins.unshift({ n:k, t:Date.now(), s:sessionId });
-
-    // Driest 5 Corners: update freeze state on each new spin (session-based)
-    try {
-      const nn = (k === "00") ? 99 : Number(k);
-      if (Number.isFinite(nn)) {
-        cornerFreeze = updateCornerFreezeOnSpin(cornerFreeze, nn).next;
-      }
-    } catch(e) {}
-    if (spins.length > 5000) spins = spins.slice(0, 5000);
+if (spins.length > 5000) spins = spins.slice(0, 5000);
     save();
     render();
   }
@@ -1148,15 +971,13 @@ function openJunkoSectorsExplain(){
     if(!confirm("Clear all spins?")) return;
     spins = [];
     sessionId = 1;
-    cornerFreeze = initCornerFreezeState();
-    save();
+save();
     render();
   }
 
   function newSession() {
     sessionId += 1;
-    cornerFreeze = initCornerFreezeState();
-      gdc = 0;
+gdc = 0;
       gsah = { ...gsah, state:"OFF", cooldown:false, u:1, lossCount:0, betSpins:0, pnlU:0, pending:false, pendingU:1, offReason:"" };
     save();
     render();
@@ -2311,9 +2132,23 @@ function cornerHit(nums, spin){
   })();
 
   function normalizeSpinNumber(n){
-    // tracker uses 99 for "00" in some builds; treat both 0 and 99 as green/non-corner
-    return (n === 99 ? 99 : n);
+  // Accept numbers or strings from keypad/CSV. Tracker uses 99 for "00" in some builds.
+  if (n === null || n === undefined) return null;
+  if (typeof n === 'string'){
+    const s = n.trim();
+    if (s === '') return null;
+    if (s === '00') return 99;
+    const x = Number(s);
+    return Number.isFinite(x) ? x : null;
   }
+  if (typeof n === 'number'){
+    return Number.isFinite(n) ? n : null;
+  }
+  // best-effort fallback
+  const x = Number(n);
+  return Number.isFinite(x) ? x : null;
+}
+
 
   function computeCornersStatsFromSpins(spins){
     // spins are newest-first
@@ -2348,99 +2183,16 @@ function cornerHit(nums, spin){
 
   // Freeze state (tap Activate to freeze; auto-reset after 2 hits; tap again to manually reset)
   const CORNER_FREEZE_KEY = "cornerFreezeD5C_v1";
-  function loadCornerFreeze(){
-    try {
-      const raw = localStorage.getItem(CORNER_FREEZE_KEY);
-      if (!raw) return null;
-      const obj = JSON.parse(raw);
-      if (!obj || typeof obj !== "object") return null;
-      return obj;
-    } catch(e){ return null; }
-  }
-  function saveCornerFreeze(state){
-    try { localStorage.setItem(CORNER_FREEZE_KEY, JSON.stringify(state)); } catch(e){}
-  }
-  function resetCornerFreeze(){
-    const st = { active:false, frozen:[], hitCount:0, lastSpinCount:0 };
-    saveCornerFreeze(st);
-    return st;
-  }
-  function ensureCornerFreeze(){
-    const st = loadCornerFreeze();
-    if (!st || typeof st.active !== "boolean") return resetCornerFreeze();
-    if (!Array.isArray(st.frozen)) st.frozen = [];
-    if (typeof st.hitCount !== "number") st.hitCount = 0;
-    if (typeof st.lastSpinCount !== "number") st.lastSpinCount = 0;
-    return st;
-  }
-
-  function freezeCurrentTop5(spins){
-    const all = computeCornersStatsFromSpins(spins);
-    const top5 = [...all].sort((a,b)=>{
-      if (a.hits !== b.hits) return a.hits - b.hits;       // driest = fewest hits
-      if (a.age !== b.age) return b.age - a.age;           // tiebreaker = oldest last hit
-      return a.id.localeCompare(b.id);
-    }).slice(0,5);
-    const st = { active:true, frozen: top5.map(x=>x.id), hitCount:0, lastSpinCount: spins.length };
-    saveCornerFreeze(st);
-    return st;
-  }
-
-  function updateCornerFreezeOnSpin(state, _spinKey){ return { next: state }; }
-    const prevCount = st.lastSpinCount || 0;
-    if (spins.length <= prevCount) return st;
-
-    for (let i=prevCount; i<spins.length; i++){
-      const n0 = normalizeSpinNumber(spins[i]);
-      if (n0 === 0 || n0 === 99) continue;
-      const cids = NUM_TO_CORNERS.get(n0) || [];
-      if (!cid) continue;
-      // number can hit multiple corners
-    if (cids.some(cid => st.frozen.includes(cid))) {
-        st.hitCount = (st.hitCount||0) + 1;
-        if (st.hitCount >= 2) {
-          st = resetCornerFreeze();
-          st.lastSpinCount = spins.length;
-          saveCornerFreeze(st);
-          return st;
-        }
-      }
-    }
-    st.lastSpinCount = spins.length;
-    saveCornerFreeze(st);
-    return st;
-  }
-
-  function computeRunningDriest5(spins){
-  // LIVE only: compute spins-since-last-hit for each corner (overlapping resets correctly).
-  const stats = computeCornersStatsFromSpins(spins);
-  const all = Object.entries(stats).map(([id, s]) => ({
-    id,
-    label: s.label,
-    age: s.age,
-    hits: s.hits
-  }));
-  all.sort((a,b)=> (b.age - a.age) || (a.label.localeCompare(b.label)));
-  const top5 = all.slice(0,5);
-  const line = top5.map(c => `${c.label} (${c.age})`).join(" / ");
-  return { top5, all, line, setFlag:"LIVE" };
+  
+function computeLiveDriest5Corners(spinsNewestFirst){
+  const stats = computeCornersStatsFromSpins(spinsNewestFirst);
+  stats.sort((a,b)=> (b.age - a.age) || a.id.localeCompare(b.id));
+  const top = stats.slice(0,5);
+  const line = "D5C — " + top.map(o => `${o.id} (${o.age})`).join(" / ");
+  const details = top.map(o => `${o.id} = {${o.nums.join(", ")}} ; age=${o.age}`).join("\n");
+  return { top, line, details };
 }
 
-function activateCornerFreezeToggle(state, _spins){ return state; }
-
-function activateCornerFreezeToggle(spins){
-    const st = ensureCornerFreeze();
-    if (st.active) {
-      const cleared = resetCornerFreeze();
-      cleared.lastSpinCount = spins.length;
-      saveCornerFreeze(cleared);
-      return cleared;
-    }
-    return freezeCurrentTop5(spins);
-  }
-
-  // global corner freeze state handle
-  let cornerFreeze = ensureCornerFreeze();
 function render() {
   try {
     $("winLabel").textContent = "Last " + windowN;
@@ -2466,7 +2218,7 @@ function render() {
         const jAges = junkoAges(recent);
     const fmtAge = (a) => (a === 999 ? (recent.length + "+") : String(a));
     $("junko").textContent = "GN " + cts.gn + " (" + fmtAge(jAges.gn) + ") | HO " + cts.ho + " (" + fmtAge(jAges.ho) + ") | LO " + cts.lo + " (" + fmtAge(jAges.lo) + ") | M " + cts.m + " (" + fmtAge(jAges.m) + ")";
-    $("junkoBets").textContent = "Bet numbers — GN: " + [...JUNKO_SECTORS.GN].sort((a,b)=>a-b).join(", ") + " | HO: " + [...JUNKO_SECTORS.HO].sort((a,b)=>a-b).join(", ") + " | LO: " + [...JUNKO_SECTORS.LO].sort((a,b)=>a-b).join(", ") + " | M: " + [...JUNKO_SECTORS.M].sort((a,b)=>a-b).join(", ");
+  $("junkoSectors").textContent = `GN: ${JUNKO_SECTORS.GN.join(", ")}  |  HO: ${JUNKO_SECTORS.HO.join(", ")}  |  LO: ${JUNKO_SECTORS.LO.join(", ")}  |  M: ${JUNKO_SECTORS.M.join(", ")}`;
 
     $("lastList").value = spins.slice(0,20).map(x => (x.n==="00"?"00":String(x.n))).join(", ");
 
@@ -2537,29 +2289,27 @@ function render() {
       $("soldiers").textContent = `Need 15 spins; have ${sld.have}`;
       $("soldiers2").textContent = "—";
     }
-    // Driest 5 Corners (LIVE, spins are newest-first)
+    // Driest 5 Corners (LIVE, newest-first; 12 non-overlapping corners only)
+    
     try {
       const sesSpins = spins
         .filter(x => x.s === sessionId)
-        .slice()
-                .map(x => (x.n === "00") ? 99 : Number(x.n))
+        .map(x => (x.n === "00") ? 99 : Number(x.n))
         .filter(n => Number.isFinite(n));
 
       if (sesSpins.length === 0) {
         $("corners5").textContent = "—";
         $("corners5b").textContent = "—";
       } else {
-        const snap = computeRunningDriest5(sesSpins);
-        $("corners5").textContent = `${snap.setFlag} — ${snap.line || "—"}`;
+        const snap = computeLiveDriest5Corners(sesSpins);
+        $("corners5").textContent = snap.line || "—";
         $("corners5b").textContent = "LIVE — (x) is spins since last hit.";
       }
     } catch(e) {
       $("corners5").textContent = "—";
       $("corners5b").textContent = "—";
     }
-
-
-    // Top plays cards
+// Top plays cards
     const topPlays = $("topPlays");
     topPlays.innerHTML = "";
     scored.plays.forEach((p, idx) => {
