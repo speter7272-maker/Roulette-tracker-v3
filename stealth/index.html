@@ -220,7 +220,8 @@
           <div class="box"><div class="k">Red / Black</div><div class="v mono" id="rb">0 / 0</div></div>
           <div class="box"><div class="k">High / Low</div><div class="v mono" id="hl">0 / 0</div></div>
           <div class="box"><div class="k">Even / Odd</div><div class="v mono" id="eo">0 / 0</div></div>
-          <div class="box"><div class="row" style="justify-content:space-between;align-items:center;gap:10px"><div class="k">Junko quadrants</div><button class="btn small" type="button" onclick="openJunkoSectorsExplain()">Explain</button></div><div class="v mono" id="junko">GN 0 | HO 0 | LO 0 | M 0</div></div>
+          <div class="box"><div class="row" style="justify-content:space-between;align-items:center;gap:10px"><div class="k">Junko quadrants</div><button class="btn small" type="button" onclick="openJunkoSectorsExplain()">Explain</button></div><div class="v mono" id="junko">GN 0 | HO 0 | LO 0 | M 0</div>
+        <div class="small mono" id="junkoBets" style="margin-top:8px; opacity:.9;"></div></div>
         </div>
 
         <div class="hr"></div>
@@ -938,6 +939,28 @@ Tracker UI
   }
   on("expClose", "click", closeExplain);
   on("expBackdrop", "click", closeExplain);
+
+function openJunkoSectorsExplain(){
+  const gn = [...JUNKO_SECTORS.GN].sort((a,b)=>a-b).join(", ");
+  const ho = [...JUNKO_SECTORS.HO].sort((a,b)=>a-b).join(", ");
+  const lo = [...JUNKO_SECTORS.LO].sort((a,b)=>a-b).join(", ");
+  const m  = [...JUNKO_SECTORS.M ].sort((a,b)=>a-b).join(", ");
+
+  const body = `
+    <div class="mono" style="line-height:1.5;">
+      <div><b>GN</b>: ${gn}</div>
+      <div><b>HO</b>: ${ho}</div>
+      <div><b>LO</b>: ${lo}</div>
+      <div><b>M</b>: ${m}</div>
+      <div style="margin-top:10px; opacity:.9;">
+        These are the fixed Junko quadrant sector groupings used by the tracker.
+        “Bet numbers” = all numbers in that sector.
+      </div>
+    </div>
+  `;
+  openExplain("Junko sectors — bet numbers", body);
+}
+
 
   function showExplain(name) {
     // normalize dynamic names (if ever added later)
@@ -2363,14 +2386,7 @@ function cornerHit(nums, spin){
     return st;
   }
 
-  function updateCornerFreezeOnSpin(spins){
-    // called from render() to reconcile hit counting as spins grow
-    let st = ensureCornerFreeze();
-    if (!st.active || !st.frozen || st.frozen.length === 0) {
-      st.lastSpinCount = spins.length;
-      saveCornerFreeze(st);
-      return st;
-    }
+  function updateCornerFreezeOnSpin(state, _spinKey){ return { next: state }; }
     const prevCount = st.lastSpinCount || 0;
     if (spins.length <= prevCount) return st;
 
@@ -2396,40 +2412,23 @@ function cornerHit(nums, spin){
   }
 
   function computeRunningDriest5(spins){
-    // reconcile freeze state first (auto-reset after 2 hits)
-    const st = updateCornerFreezeOnSpin(spins);
+  // LIVE only: compute spins-since-last-hit for each corner (overlapping resets correctly).
+  const stats = computeCornersStatsFromSpins(spins);
+  const all = Object.entries(stats).map(([id, s]) => ({
+    id,
+    label: s.label,
+    age: s.age,
+    hits: s.hits
+  }));
+  all.sort((a,b)=> (b.age - a.age) || (a.label.localeCompare(b.label)));
+  const top5 = all.slice(0,5);
+  const line = top5.map(c => `${c.label} (${c.age})`).join(" / ");
+  return { top5, all, line, setFlag:"LIVE" };
+}
 
-    const all = computeCornersStatsFromSpins(spins);
-    const sorted = [...all].sort((a,b)=>{
-      if (a.hits !== b.hits) return a.hits - b.hits;
-      if (a.age !== b.age) return b.age - a.age;
-      return a.id.localeCompare(b.id);
-    });
+function activateCornerFreezeToggle(state, _spins){ return state; }
 
-    const top5 = sorted.slice(0,5);
-
-    const show = (st.active && st.frozen && st.frozen.length) ? st.frozen : top5.map(x=>x.id);
-
-    // Build display line in driest-first order (use stats ages from current session)
-    const statById = new Map(all.map(x=>[x.id,x]));
-    const line = show.map(id=>{
-      const x = statById.get(id);
-      const age = x ? x.age : 0;
-      return `${id} (${age})`;
-    }).join(" / ");
-
-    return {
-      top5,
-      all: sorted,
-      isActive: !!st.active,
-      frozen: show,
-      hitCount: st.hitCount||0,
-      line,
-      setFlag: "D5C"
-    };
-  }
-
-  function activateCornerFreezeToggle(spins){
+function activateCornerFreezeToggle(spins){
     const st = ensureCornerFreeze();
     if (st.active) {
       const cleared = resetCornerFreeze();
@@ -2467,6 +2466,7 @@ function render() {
         const jAges = junkoAges(recent);
     const fmtAge = (a) => (a === 999 ? (recent.length + "+") : String(a));
     $("junko").textContent = "GN " + cts.gn + " (" + fmtAge(jAges.gn) + ") | HO " + cts.ho + " (" + fmtAge(jAges.ho) + ") | LO " + cts.lo + " (" + fmtAge(jAges.lo) + ") | M " + cts.m + " (" + fmtAge(jAges.m) + ")";
+    $("junkoBets").textContent = "Bet numbers — GN: " + [...JUNKO_SECTORS.GN].sort((a,b)=>a-b).join(", ") + " | HO: " + [...JUNKO_SECTORS.HO].sort((a,b)=>a-b).join(", ") + " | LO: " + [...JUNKO_SECTORS.LO].sort((a,b)=>a-b).join(", ") + " | M: " + [...JUNKO_SECTORS.M].sort((a,b)=>a-b).join(", ");
 
     $("lastList").value = spins.slice(0,20).map(x => (x.n==="00"?"00":String(x.n))).join(", ");
 
@@ -2537,13 +2537,12 @@ function render() {
       $("soldiers").textContent = `Need 15 spins; have ${sld.have}`;
       $("soldiers2").textContent = "—";
     }
-    // Driest 5 Corners (LIVE, newest-first; 12 non-overlapping corners only)
+    // Driest 5 Corners (LIVE, spins are newest-first)
     try {
       const sesSpins = spins
         .filter(x => x.s === sessionId)
         .slice()
-        .reverse() // newest-first
-        .map(x => (x.n === "00") ? 99 : Number(x.n))
+                .map(x => (x.n === "00") ? 99 : Number(x.n))
         .filter(n => Number.isFinite(n));
 
       if (sesSpins.length === 0) {
