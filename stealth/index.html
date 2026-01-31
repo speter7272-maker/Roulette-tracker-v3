@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.30</title>
+  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.31</title>
   <style>
     :root{color-scheme:dark; --bg:#0b1220; --card:#0f1a2e; --muted:#94a3b8; --txt:#e5e7eb; --accent:#60a5fa; --warn:#fbbf24; --danger:#ef4444; --ok:#34d399; --chip:#111c33; --border:#1f2a44;}
     *{box-sizing:border-box}
@@ -76,8 +76,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.30</div>
-    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.30</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.31</div>
+    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.31</div>
     <div class="sub">Build date: <b>2026-01-09</b>. Tap spins on the keypad. Tracks last 10/15/20: columns, dozens, double-streets, red/black, high/low, even/odd, Junko quadrants. Saves on-device.</div>
 
     <div class="card">
@@ -220,7 +220,14 @@
           <div class="box"><div class="k">Red / Black</div><div class="v mono" id="rb">0 / 0</div></div>
           <div class="box"><div class="k">High / Low</div><div class="v mono" id="hl">0 / 0</div></div>
           <div class="box"><div class="k">Even / Odd</div><div class="v mono" id="eo">0 / 0</div></div>
-          <div class="box"><div class="k">Junko quadrants</div><div class="v mono" id="junko">GN 0 | HO 0 | LO 0 | M 0</div></div>
+          <div class="box">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+              <div class="k">Junko quadrants</div>
+              <button class="btn small" id="junkoExplainBtn" type="button">Explain</button>
+            </div>
+            <div class="v mono" id="junko">GN 0 | HO 0 | LO 0 | M 0</div>
+            <div class="k mono" id="junkoBets" style="margin-top:6px">Bet numbers — GN … | HO … | LO … | M …</div>
+          </div>
         </div>
 
         <div class="hr"></div>
@@ -295,6 +302,27 @@ document.addEventListener('DOMContentLoaded', () => {
   const HO = new Set([24,25,26,29,30,33,34,35,36]);
   const LO = new Set([3,4,8,11,12,15,16,22,23]);
   const MID= new Set([5,6,7,17,18,19,20,21,31,32]);
+
+
+// Junko quadrant bet numbers (static definitions)
+const JUNKO_BET_NUMS = (() => {
+  const sortKey = (x) => {
+    if (x === "00") return -2;
+    const n = Number(x);
+    if (n === 0) return -1;
+    return n;
+  };
+  const fmt = (set) => Array.from(set)
+    .sort((a,b)=> sortKey(a) - sortKey(b))
+    .map(v => (v==="00" ? "00" : String(Number(v))))
+    .join(",");
+  return {
+    GN: fmt(GN),
+    HO: fmt(HO),
+    LO: fmt(LO),
+    M:  fmt(MID),
+  };
+})();
 
   let spins = []; // newest-first: {n,t,s}
   // Green drought counter (GDC): increments on non-green spins, resets on 0/00
@@ -938,6 +966,36 @@ Tracker UI
   }
   on("expClose", "click", closeExplain);
   on("expBackdrop", "click", closeExplain);
+
+  // Junko quadrants: modal explain (analytics only)
+  function buildJunkoExplainBody(){
+    const recent = windowValues(); // newest-first in current window
+    const cts = counts(recent);
+    const jAges = junkoAges(recent);
+    const fmtAge = (a) => (a === 999 ? (recent.length + "+") : String(a));
+    return [
+      "Junko quadrants (window = last " + windowN + ")",
+      "",
+      "Counts (window):",
+      "• GN: " + cts.gn + "   (age " + fmtAge(jAges.gn) + ")",
+      "• HO: " + cts.ho + "   (age " + fmtAge(jAges.ho) + ")",
+      "• LO: " + cts.lo + "   (age " + fmtAge(jAges.lo) + ")",
+      "• M : " + cts.m  + "   (age " + fmtAge(jAges.m)  + ")",
+      "",
+      "Bet numbers (static definitions):",
+      "• GN: " + JUNKO_BET_NUMS.GN,
+      "• HO: " + JUNKO_BET_NUMS.HO,
+      "• LO: " + JUNKO_BET_NUMS.LO,
+      "• M : " + JUNKO_BET_NUMS.M,
+      "",
+      "Notes:",
+      "• Ages are spins since last hit within the window (0 = hit on most recent spin).",
+      "• 0/00 are included only where listed (GN includes 0 and 00)."
+    ].join("\n");
+  }
+  on("junkoExplainBtn", "click", () => {
+    openExplain("Junko quadrants", buildJunkoExplainBody());
+  });
 
   function showExplain(name) {
     // normalize dynamic names (if ever added later)
@@ -2469,6 +2527,7 @@ function render() {
         const jAges = junkoAges(recent);
     const fmtAge = (a) => (a === 999 ? (recent.length + "+") : String(a));
     $("junko").textContent = "GN " + cts.gn + " (" + fmtAge(jAges.gn) + ") | HO " + cts.ho + " (" + fmtAge(jAges.ho) + ") | LO " + cts.lo + " (" + fmtAge(jAges.lo) + ") | M " + cts.m + " (" + fmtAge(jAges.m) + ")";
+    $("junkoBets").textContent = `Bet numbers — GN ${JUNKO_BET_NUMS.GN} | HO ${JUNKO_BET_NUMS.HO} | LO ${JUNKO_BET_NUMS.LO} | M ${JUNKO_BET_NUMS.M}`;
 
     $("lastList").value = spins.slice(0,20).map(x => (x.n==="00"?"00":String(x.n))).join(", ");
 
