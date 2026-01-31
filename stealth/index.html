@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.35</title>
+  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.36</title>
   <style>
     :root{color-scheme:dark; --bg:#0b1220; --card:#0f1a2e; --muted:#94a3b8; --txt:#e5e7eb; --accent:#60a5fa; --warn:#fbbf24; --danger:#ef4444; --ok:#34d399; --chip:#111c33; --border:#1f2a44;}
     *{box-sizing:border-box}
@@ -75,31 +75,12 @@
     .bigWhite{font-size:26px;font-weight:900;color:#ffffff;letter-spacing:0.2px}
   </style>
 
-<style>
-/* Normalize Green Status font size to match other white numeric values (e.g., 12 Soldiers) */
-.green-status .value,
-.green-status-value {
-  font-size: 1.05em;
-  font-weight: 600;
-}
-</style>
-
-
-<style>
-/* Match Green Status font size to 12 Soldiers numeric text */
-.green-status .value,
-.green-status-value {
-  font-size: 0.9em !important;
-  font-weight: 600;
-}
-</style>
-
 </head>
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.35</div>
-    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.35</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.36</div>
+    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.36</div>
     <div class="sub">Build date: <b>2026-01-09</b>. Tap spins on the keypad. Tracks last 10/15/20: columns, dozens, double-streets, red/black, high/low, even/odd, Junko quadrants. Saves on-device.</div>
 
     <div class="card">
@@ -210,7 +191,7 @@
 
           <div class="box">
             <div class="k">Green status</div>
-            <div class="v mono bigWhite" id="gsah">—</div>
+            <div class="v mono" id="gsah">—</div>
             <div class="k" id="gsah2">—</div>
           </div>
 
@@ -2498,10 +2479,10 @@ function cornerHit(nums, spin){
     // LIVE view only (no freezing): compute the 5 driest corners in the current session.
     const all = computeCornersStatsFromSpins(spins);
     const sorted = [...all].sort((a,b)=>{
-      // Primary: fewest hits (driest)
-      if (a.hits !== b.hits) return a.hits - b.hits;
-      // Tie-breaker: older last hit (higher age)
+      // Primary: spins since last hit (age) — driest first
       if (a.age !== b.age) return b.age - a.age;
+      // Tie-breaker: fewer total hits (drier historically)
+      if (a.hits !== b.hits) return a.hits - b.hits;
       // Stable order
       return a.id.localeCompare(b.id);
     });
