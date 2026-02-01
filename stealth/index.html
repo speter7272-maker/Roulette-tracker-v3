@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.38</title>
+  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.39</title>
   <style>
     :root{color-scheme:dark; --bg:#0b1220; --card:#0f1a2e; --muted:#94a3b8; --txt:#e5e7eb; --accent:#60a5fa; --warn:#fbbf24; --danger:#ef4444; --ok:#34d399; --chip:#111c33; --border:#1f2a44;}
     *{box-sizing:border-box}
@@ -79,8 +79,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.38</div>
-    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.38</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.39</div>
+    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.39</div>
     <div class="sub">Build date: <b>2026-01-09</b>. Tap spins on the keypad. Tracks last 10/15/20: columns, dozens, double-streets, red/black, high/low, even/odd, Junko quadrants. Saves on-device.</div>
 
     <div class="card">
@@ -332,38 +332,37 @@ const JUNKO_BET_NUMS = (() => {
     LO: fmt(LO),
     M:  fmt(MID),
   };
-
-// Greenland strategy number set:
-// - Base = Junko GN quadrant (10 numbers)
-// - Additions = 23,24,25,26,35,36  -> total 16 unique numbers
-const GREENLAND_SET = (() => {
-  const s = new Set(Array.from(GN)); // GN includes "00" and 0
-  [23,24,25,26,35,36].forEach(n => s.add(n));
-  return s;
 })();
 
-const GREENLAND_NUMS_FMT = (() => {
-  const sortKey = (x) => {
-    if (x === "00") return -2;
-    const n = Number(x);
-    if (n === 0) return -1;
-    return n;
-  };
-  return Array.from(GREENLAND_SET)
-    .sort((a,b)=> sortKey(a) - sortKey(b))
-    .map(v => (v==="00" ? "00" : String(Number(v))))
-    .join(", ");
-})();
+  // Greenland strategy number set:
+  // Base = Junko GN quadrant (10 numbers)
+  // Additions = 23,24,25,26,35,36  -> total 16 unique numbers
+  const GREENLAND_SET = (() => {
+    const s = new Set(Array.from(GN));
+    [23,24,25,26,35,36].forEach(n => s.add(n));
+    return s;
+  })();
 
-function computeSinceAnyInSet(spinsNewestFirst, set){
-  // Returns spins since last hit of any number in set, using newest-first spin array.
-  // If most recent spin is a hit -> 0.
-  for (let i=0;i<spinsNewestFirst.length;i++){
-    const n = spinsNewestFirst[i]?.n;
-    if (set.has(n)) return i;
+  const GREENLAND_NUMS_FMT = (() => {
+    const sortKey = (x) => {
+      if (x === "00") return -2;
+      const n = Number(x);
+      if (n === 0) return -1;
+      return n;
+    };
+    return Array.from(GREENLAND_SET)
+      .sort((a,b)=> sortKey(a) - sortKey(b))
+      .map(v => (v==="00" ? "00" : String(Number(v))))
+      .join(", ");
+  })();
+
+  function computeSinceAnyInSet(spinsNewestFirst, set){
+    for (let i=0;i<spinsNewestFirst.length;i++){
+      const n = spinsNewestFirst[i]?.n;
+      if (set.has(n)) return i;
+    }
+    return spinsNewestFirst.length;
   }
-  return spinsNewestFirst.length;
-}
 
 
   let spins = []; // newest-first: {n,t,s}
@@ -2605,7 +2604,7 @@ const sessGreens = sessSpins.reduce((a, n) => a + (isGreen(n) ? 1 : 0), 0);
           $("greenland").textContent = `sinceGL=${sinceGL}`;
           $("greenland2").textContent = `nums: ${GREENLAND_NUMS_FMT}`;
         } catch(e) {}
-        
+
 $("gsah").textContent = `sinceGreen=${sinceGreen} • greens=${sessGreens}/${sessTotal}`;
 $("gsah2").textContent = "";
 
