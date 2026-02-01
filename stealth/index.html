@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.39</title>
+  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.40</title>
   <style>
     :root{color-scheme:dark; --bg:#0b1220; --card:#0f1a2e; --muted:#94a3b8; --txt:#e5e7eb; --accent:#60a5fa; --warn:#fbbf24; --danger:#ef4444; --ok:#34d399; --chip:#111c33; --border:#1f2a44;}
     *{box-sizing:border-box}
@@ -79,8 +79,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.39</div>
-    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.39</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.40</div>
+    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.40</div>
     <div class="sub">Build date: <b>2026-01-09</b>. Tap spins on the keypad. Tracks last 10/15/20: columns, dozens, double-streets, red/black, high/low, even/odd, Junko quadrants. Saves on-device.</div>
 
     <div class="card">
@@ -194,6 +194,10 @@
             <div class="k">Greenland (16-number set)</div>
             <div class="v mono" id="greenland">—</div>
             <div class="k" id="greenland2">—</div>
+            <div class="k" id="greenlandG1">—</div>
+            <div class="k" id="greenlandG2">—</div>
+            <div class="k" id="greenlandG3">—</div>
+            <div class="k" id="greenlandG4">—</div>
           </div>
 
 <div class="box">
@@ -355,6 +359,14 @@ const JUNKO_BET_NUMS = (() => {
       .map(v => (v==="00" ? "00" : String(Number(v))))
       .join(", ");
   })();
+
+  const GREENLAND_GROUPS = [
+    { id: "G1", label: "(00,0,1,2)", set: new Set(["00", 0, 1, 2]) },
+    { id: "G2", label: "(9,10,13,14)", set: new Set([9, 10, 13, 14]) },
+    { id: "G3", label: "(23,24,25,26)", set: new Set([23, 24, 25, 26]) },
+    { id: "G4", label: "(27,28,35,36)", set: new Set([27, 28, 35, 36]) },
+  ];
+
 
   function computeSinceAnyInSet(spinsNewestFirst, set){
     for (let i=0;i<spinsNewestFirst.length;i++){
@@ -2603,6 +2615,15 @@ const sessGreens = sessSpins.reduce((a, n) => a + (isGreen(n) ? 1 : 0), 0);
           const sinceGL = computeSinceAnyInSet(sesSpins, GREENLAND_SET);
           $("greenland").textContent = `sinceGL=${sinceGL}`;
           $("greenland2").textContent = `nums: ${GREENLAND_NUMS_FMT}`;
+          // Greenland sub-groups (spins since hit)
+          const gEls = ["greenlandG1","greenlandG2","greenlandG3","greenlandG4"];
+          for (let gi=0; gi<GREENLAND_GROUPS.length; gi++){
+            const g = GREENLAND_GROUPS[gi];
+            const sinceG = computeSinceAnyInSet(sesSpins, g.set);
+            const el = $(gEls[gi]);
+            if (el) el.textContent = `${g.id} ${g.label}: ${sinceG}`;
+          }
+
         } catch(e) {}
 
 $("gsah").textContent = `sinceGreen=${sinceGreen} • greens=${sessGreens}/${sessTotal}`;
