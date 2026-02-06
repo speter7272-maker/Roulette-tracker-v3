@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.47</title>
+  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.48</title>
   <style>
     :root{color-scheme:dark; --bg:#0b1220; --card:#0f1a2e; --muted:#94a3b8; --txt:#e5e7eb; --accent:#60a5fa; --warn:#fbbf24; --danger:#ef4444; --ok:#34d399; --chip:#111c33; --border:#1f2a44;}
     *{box-sizing:border-box}
@@ -79,8 +79,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.47</div>
-    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.47</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.48</div>
+    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.48</div>
     <div class="sub">Build date: <b>2026-01-09</b>. Tap spins on the keypad. Tracks last 10/15/20: columns, dozens, double-streets, red/black, high/low, even/odd, Junko quadrants. Saves on-device.</div>
 
     <div class="card">
@@ -1669,9 +1669,6 @@ function scoreFTL(vals){
 }
 
 function scoreJunkoHot(vals){
-    const js = junkoSignal(vals);
-    if(js.mode !== "HOT") return 0;
-
   const last15 = vals.slice(0,15);
   const c15 = counts(last15);
   const qMax = Math.max(c15.gn,c15.ho,c15.lo,c15.m);
@@ -2011,8 +2008,6 @@ function scoreTrinity(vals){
 
 function scoreStrategies(vals) {
   const plays = [];
-  const js = junkoSignal(vals);
-  const junkoGate = (js.mode !== \"OFF\");
   const add = (name, score, why, extra={}) => plays.push({name, score, why, ...extra});
 
   // Fail-safe: a broken strategy must never crash render/keypad.
@@ -2082,6 +2077,48 @@ function scoreStrategies(vals) {
 
 
 
+
+  // --- Junko eligibility gate (hard filter) ---
+  // Only surface Junko strategies when exactly one quadrant is HOT (>=6/15)
+  // or DRY (>=10 spins since hit within last-15 window). Otherwise suppress Junko entirely.
+  const junkoGate = (() => {
+    const w15 = vals.slice(0,15);
+    if(w15.length < 15) return {eligible:false, mode:"OFF", quadrant:null, detail:"Need 15 spins."};
+    const c15 = counts(w15);
+    const ages = junkoAges(w15);
+    const ageVal = (a) => (a === 999 ? w15.length : a); // 999 means not hit in window
+    const q = [
+      {id:"GN", hits:c15.gn, age:ageVal(ages.gn)},
+      {id:"HO", hits:c15.ho, age:ageVal(ages.ho)},
+      {id:"LO", hits:c15.lo, age:ageVal(ages.lo)},
+      {id:"M",  hits:c15.m,  age:ageVal(ages.m)},
+    ];
+    q.forEach(x => {
+      x.isHot = (x.hits >= 6);
+      x.isDry = (x.age >= 10);
+      x.qual  = x.isHot || x.isDry;
+    });
+    const qual = q.filter(x => x.qual);
+    if(qual.length !== 1) return {eligible:false, mode:"OFF", quadrant:null, detail:`qual=${qual.length}`};
+    const one = qual[0];
+    const mode = one.isHot ? "HOT" : "DRY";
+    return {eligible:true, mode, quadrant: one.id, detail:`${one.id} hits=${one.hits}/15 age=${one.age}`};
+  })();
+
+  // Helper: identify Junko-derived strategies to suppress when gate is OFF
+  const isJunkoStrategy = (name) => {
+    const nm = String(name||"");
+    return /Junko/i.test(nm) || /Moon Dance/i.test(nm);
+  };
+
+
+  // Apply Junko suppression if gate is OFF (must happen before sorting / primary selection).
+  if(!junkoGate.eligible){
+    for(let i = plays.length - 1; i >= 0; i--){
+      if(isJunkoStrategy(plays[i]?.name)) plays.splice(i,1);
+    }
+  }
+
   // Annotate play mode for display (COMP vs CASH)
   plays.forEach(p => {
     if (p && !p.mode) {
@@ -2150,9 +2187,44 @@ function scoreStrategies(vals) {
   else if(isEven) state = "Even";
   else if(isConcentrated) state = "Concentrated";
 
-  // Junko state overlay (only when exactly one quadrant is HOT or DRY; drought takes precedence)
-  if(!isDrought && js.mode === "HOT") state = "JUNKO HOT";
-  else if(!isDrought && js.mode === "DRY") state = "JUNKO DRY";
+
+  // If Junko gate is ON, override the table state label (for display + downstream routing).
+  if(junkoGate.eligible){
+    state = (junkoGate.mode === "HOT") ? "JUNKO HOT" : "JUNKO DRY";
+  }
+
+  // Strategy routing based on table trend (non-quadrant systems unless Junko gate is ON)
+  const pickByName = (nm) => plays.find(p => p.name === nm) || null;
+
+  if(state === "JUNKO HOT"){
+    // Recommend Junko Hot with flat bet + short leash (10–15 spins).
+    const j = pickByName("Junko Hot (Quadrant Momentum)");
+    if(j){
+      primary = {...j, mode:"CASH", why: (j.why||"") + " Flat bet only. Short leash (10–15 spins)."};
+    }
+  } else if(state === "JUNKO DRY"){
+    // DRY signal: still Junko-eligible; keep it conservative.
+    const mdPlay = pickByName("Moon Dance 2S/Dozen (Junko Base)");
+    if(mdPlay){
+      primary = {...mdPlay, mode:"CASH", why: (mdPlay.why||"") + " Flat bet only. Short leash (10–15 spins)."};
+    }
+  } else if(state === "Repeat-Heavy"){
+    // Iron Turtle v2 not present in this build; default to 12 Soldiers.
+    const s = pickByName("12 Soldiers — Unique Columns, 12→8 Reset");
+    if(s) primary = {...s, mode: primary.mode || "CASH"};
+  } else if(state === "Even"){
+    // Dozens Overload v2 not present; default to Easy Street.
+    const e = pickByName("Easy Street — Cold Side (Option A′ Late Straights)");
+    if(e) primary = {...e, mode: primary.mode || "CASH"};
+  } else if(state === "Cold/Drought"){
+    const six = pickByName("6 Diamonds + 0/00 (Primary)");
+    if(six) primary = {...six, mode:"COMP"};
+  } else {
+    // Else: Sit out or flat bet (keep existing primary, but if weak, suggest sit out).
+    if(primary && primary.score < 80){
+      primary = {name:"Sit out / Flat bet", score: primary.score||1, why:"No clean trend signal; keep exposure minimal.", mode:"COMP"};
+    }
+  }
 
   return {state, plays: top3, primary};
 }
@@ -2662,13 +2734,6 @@ $("gsah2").textContent = "";
   // IF Cold/Drought → 6 Diamonds + 0/00 (Elimination)
   // ELSE → Sit out / Flat bet
   const trendOverride = (() => {
-    if(scored.state === "JUNKO HOT"){
-      return { mode: "CASH", name: "Junko Hot (Quadrant Momentum)", note: "Flat bet only • short leash 10–15 spins" };
-    }
-    if(scored.state === "JUNKO DRY"){
-      return { mode: "CASH", name: "Moon Dance 2S/Dozen (Junko Base)", note: "Flat bet only • short leash 10–15 spins" };
-    }
-
     if(scored.state === "Repeat-Heavy") {
       return { mode: "CASH", name: "12 Soldiers — Unique Columns, 12→8 Reset", why: "Trend: Repeat-Heavy → favor structured coverage. Alt: Iron Turtle v2." };
     }
@@ -3080,43 +3145,3 @@ function __waveUpdateFromSpin(val){
 </script>
 </body>
 </html>
-
-// === JUNKO GATING OVERRIDE (LOCKED 1.46) ===
-// Only surface Junko strategies when EXACTLY ONE quadrant qualifies:
-// HOT >= 6/15 OR DRY >= 10 since hit.
-// Otherwise suppress Junko and fall back to non-quadrant systems.
-
-function evalJunkoGate(jqStats) {
-  // jqStats = [{id, hits15, sinceHit}, ...]
-  const qualifies = jqStats.filter(q =>
-    (q.hits15 >= 6) || (q.sinceHit >= 10)
-  );
-  if (qualifies.length !== 1) {
-    return { enabled: false };
-  }
-  const q = qualifies[0];
-  if (q.hits15 >= 6) {
-    return { enabled: true, mode: "HOT", quadrant: q.id };
-  }
-  return { enabled: true, mode: "DRY", quadrant: q.id };
-}
-  // Junko signal gate (window-based):
-  // - HOT: exactly one quadrant has >=6 hits in the last 15 (or current window)
-  // - DRY: exactly one quadrant has been >=10 spins since last hit (within window)
-  // If not exactly one HOT/DRY quadrant, Junko-based strategies are suppressed.
-  function junkoSignal(vals){
-    const c = junkoCounts(vals);
-    const a = junkoAges(vals);
-    const hot = Object.keys(c).filter(k => (c[k] ?? 0) >= 6);
-    const dry = Object.keys(a).filter(k => (a[k] ?? 0) >= 10);
-    const flagged = Array.from(new Set([...hot, ...dry]));
-    if(flagged.length !== 1) return { mode: "OFF", q: null, hot, dry };
-    const q = flagged[0];
-    // If the single flagged quadrant meets both lists (shouldn't happen), treat as OFF.
-    if(hot.includes(q) && dry.includes(q)) return { mode: "OFF", q: null, hot, dry };
-    if(hot.length === 1 && dry.length === 0) return { mode: "HOT", q, hot, dry };
-    if(dry.length === 1 && hot.length === 0) return { mode: "DRY", q, hot, dry };
-    return { mode: "OFF", q: null, hot, dry };
-  }
-
-
