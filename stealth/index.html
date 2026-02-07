@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.51</title>
+  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.52</title>
   <style>
     :root{color-scheme:dark; --bg:#0b1220; --card:#0f1a2e; --muted:#94a3b8; --txt:#e5e7eb; --accent:#60a5fa; --warn:#fbbf24; --danger:#ef4444; --ok:#34d399; --chip:#111c33; --border:#1f2a44;}
     *{box-sizing:border-box}
@@ -79,8 +79,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.51</div>
-    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.51</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.52</div>
+    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.52</div>
     <div class="sub">Build date: <b>2026-01-09</b>. Tap spins on the keypad. Tracks last 10/15/20: columns, dozens, double-streets, red/black, high/low, even/odd, Junko quadrants. Saves on-device.</div>
 
     <div class="card">
@@ -1050,6 +1050,10 @@ Tracker UI
 
     openExplain(`Table state: ${tableState || "—"}`, lines.join("\n"));
   }
+
+  // expose for inline onclick
+  window.openTableStateExplain = openTableStateExplain;
+
 
   on("expClose", "click", closeExplain);
   on("expBackdrop", "click", closeExplain);
