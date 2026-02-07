@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.48</title>
+  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.49</title>
   <style>
     :root{color-scheme:dark; --bg:#0b1220; --card:#0f1a2e; --muted:#94a3b8; --txt:#e5e7eb; --accent:#60a5fa; --warn:#fbbf24; --danger:#ef4444; --ok:#34d399; --chip:#111c33; --border:#1f2a44;}
     *{box-sizing:border-box}
@@ -79,8 +79,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.48</div>
-    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.48</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.49</div>
+    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.49</div>
     <div class="sub">Build date: <b>2026-01-09</b>. Tap spins on the keypad. Tracks last 10/15/20: columns, dozens, double-streets, red/black, high/low, even/odd, Junko quadrants. Saves on-device.</div>
 
     <div class="card">
@@ -2006,6 +2006,84 @@ function scoreTrinity(vals){
   return scoreTrinityV2(vals);
 }
 
+
+// ===============================
+// CHECKMATE 8 – STRATEGY ALLOWANCE
+// ===============================
+function allowedStrategiesByState(state, tableMode = "CAN_SIT_OUT") {
+
+  if (state === "STALL") {
+    return {
+      allow: [
+        "WB-RTB",
+        "CHECKMATE 8",
+        "333 Momentum Play",
+        "Twin Spines",
+        "Sly Rabbit",
+        "Dirty Bird (Comp)",
+        "24 Karat (flat)",
+        "Iron Turtle (flat)",
+        "6 Diamonds (flat)",
+        "Stella (flat)"
+      ],
+      block: [
+        "12 Soldiers",
+        "Easy Street",
+        "Moon Dance",
+        "8 Is Enough",
+        "Driest Corners"
+      ],
+      note:
+        tableMode === "MUST_BET"
+          ? "STALL: momentum / split-hit / flat coverage only"
+          : "STALL: WB-RTB or CHECKMATE 8"
+    };
+  }
+
+  if (state === "STRUCTURED") {
+    return {
+      allow: [
+        "12 Soldiers",
+        "Easy Street",
+        "Moon Dance",
+        "8 Is Enough",
+        "Dirty Bird (Cash)",
+        "CHECKMATE 8",
+        "Greenland",
+        "Stella"
+      ],
+      block: [
+        "333 Momentum Play",
+        "Twin Spines",
+        "Sly Rabbit"
+      ],
+      note: "STRUCTURED: Junko contraction + filtered splits allowed"
+    };
+  }
+
+  // CHOPPY
+  return {
+    allow: [
+      "WB-RTB",
+      "24 Karat (flat)",
+      "Iron Turtle (flat)",
+      "6 Diamonds (flat)",
+      "Stella (flat)"
+    ],
+    block: [
+      "CHECKMATE 8",
+      "12 Soldiers",
+      "Easy Street",
+      "Moon Dance",
+      "8 Is Enough"
+    ],
+    note:
+      tableMode === "MUST_BET"
+        ? "CHOPPY: comp grind only"
+        : "CHOPPY: WB-RTB"
+  };
+}
+
 function scoreStrategies(vals) {
   const plays = [];
   const add = (name, score, why, extra={}) => plays.push({name, score, why, ...extra});
@@ -2226,7 +2304,22 @@ function scoreStrategies(vals) {
     }
   }
 
-  return {state, plays: top3, primary};
+
+  // Apply strategy allowance filter (CHECKMATE 8 rules)
+  const allowance = allowedStrategiesByState(state, "CAN_SIT_OUT");
+  const allowedNames = new Set(allowance.allow || []);
+  const filtered = plays.filter(p => {
+    for (const nm of allowedNames) {
+      if (p.name === nm || p.name.startsWith(nm)) return true;
+    }
+    return false;
+  });
+
+  const finalPlays = filtered.length ? filtered.slice(0,3) : top3;
+  const finalPrimary = finalPlays[0] || primary;
+
+  return {state, plays: finalPlays, primary: finalPrimary};
+
 }
 
 // --- Extra diagnostics (repeats, Hydra cold4, Dirty Bird stats) ---
