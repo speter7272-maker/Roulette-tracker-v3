@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.59</title>
+  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.60</title>
   <style>
     :root{color-scheme:dark; --bg:#0b1220; --card:#0f1a2e; --muted:#94a3b8; --txt:#e5e7eb; --accent:#60a5fa; --warn:#fbbf24; --danger:#ef4444; --ok:#34d399; --chip:#111c33; --border:#1f2a44;}
     *{box-sizing:border-box}
@@ -79,8 +79,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.59</div>
-    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.59</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.60</div>
+    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.60</div>
     <div class="sub">Build date: <b>2026-01-09</b>. Tap spins on the keypad. Tracks last 10/15/20: columns, dozens, double-streets, red/black, high/low, even/odd, Junko quadrants. Saves on-device.</div>
 
     <div class="card">
@@ -1020,47 +1020,84 @@ Tracker UI
   }
 
   // Table state explain (allowed / blocked strategies)
-  function allowanceStateFromTableState(tableState) {
-    // Map UI table states into allowance buckets used by allowedStrategiesByState()
-    // Normalize hyphen variants (iOS sometimes uses non-ASCII hyphens).
-    const s = String(tableState || "")
-      .toUpperCase()
-      .trim()
-      .replace(/[‐‑‒–—―−]/g, "-");
+// Stopgap: show ALL allowance buckets in the modal, and show the current-resolved bucket at the top.
+// Also: normalize tableState text defensively (Safari/iOS sometimes gives non-breaking spaces, etc.).
+function normalizeTableStateLabel(s) {
+  if (s == null) return "";
+  return String(s)
+    .replace(/\u00A0/g, " ")     // nbsp
+    .replace(/\u2007/g, " ")     // figure space
+    .replace(/\u202F/g, " ")     // narrow nbsp
+    .replace(/[–—]/g, "-")       // dash variants
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+}
 
-    if (s === "JUNKO HOT" || s === "JUNKO DRY") return "STRUCTURED";
-    if (s === "REPEAT-HEAVY" || s === "COLD/DROUGHT") return "STALL";
-    if (s === "EVEN" || s === "CONCENTRATED") return "STRUCTURED";
-    return "CHOPPY";
+function allowanceStateFromTableState(tableState) {
+  const t = normalizeTableStateLabel(tableState);
+
+  // IMPORTANT: This function maps "Table state" → allowance bucket.
+  // If your UI adds new table states, add them here.
+  if (t === "STALL" || t === "COLD/DROUGHT" || t === "COLD" || t === "DROUGHT") return "STALL";
+  if (t === "STRUCTURED" || t === "EVEN") return "STRUCTURED";
+  if (t === "CHOPPY" || t === "REPEAT-HEAVY" || t === "REPEAT HEAVY") return "CHOPPY";
+
+  // Junko states: allow the UI to still compute an allowance bucket for reference.
+  // (Junko surfacing is controlled elsewhere; this just prevents "always CHOPPY" confusion.)
+  if (t.startsWith("JUNKO")) return "STRUCTURED";
+
+  // Fallback: CHOPPY is the safest bucket when unclear.
+  return "CHOPPY";
+}
+
+function openTableStateExplain() {
+  const stateEl = document.getElementById("tableStateLabel");
+  const winEl = document.getElementById("windowLabel");
+  const sessEl = document.getElementById("sessionIdLabel");
+
+  const tableStateRaw = stateEl ? stateEl.textContent : "";
+  const tableStateNorm = normalizeTableStateLabel(tableStateRaw);
+  const bucket = allowanceStateFromTableState(tableStateRaw);
+
+  const buckets = [
+    { key: "STALL", title: "STALL (cold/drought)", hint: "Momentum / split-hit / flat coverage only" },
+    { key: "STRUCTURED", title: "STRUCTURED (even/structured)", hint: "Systems + filtered splits allowed" },
+    { key: "CHOPPY", title: "CHOPPY (repeat-heavy/chop)", hint: "Comp grind / flat-only bias" }
+  ];
+
+  const lines = [];
+  lines.push(`Table state: ${tableStateRaw || "—"} • Window: ${winEl ? winEl.textContent : "—"} • Session: ${sessEl ? sessEl.textContent : "—"}`);
+  lines.push("");
+  lines.push(`Resolved allowance bucket: ${bucket}`);
+  if (tableStateNorm && tableStateNorm !== normalizeTableStateLabel(bucket)) {
+    lines.push(`(debug) normalized state: ${tableStateNorm}`);
   }
+  lines.push("");
+  lines.push("Scroll for all buckets:");
+  lines.push("");
 
-  function openTableStateExplain() {
-    const tableState = ($("state2") && $("state2").textContent) ? $("state2").textContent.trim() : "";
-    const allowanceState = allowanceStateFromTableState(tableState);
-    const mode = (window.__tableMode || "CAN_SIT_OUT");
-    const allowance = allowedStrategiesByState(allowanceState, mode);
-
-    const allow = (allowance && allowance.allow) ? allowance.allow : [];
-    const block = (allowance && allowance.block) ? allowance.block : [];
-
-    const lines = [];
-    lines.push(`Allowance bucket: ${allowanceState}`);
-    if (allowance && allowance.note) lines.push(`Note: ${allowance.note}`);
+  for (const b of buckets) {
+    const rule = allowedStrategiesByState(b.key, "CAN_SIT_OUT");
+    const isCurrent = (b.key === bucket);
+    lines.push(`${isCurrent ? "✅ " : ""}${b.title}`);
+    lines.push(`Note: ${rule.note}${b.hint ? " • " + b.hint : ""}`);
     lines.push("");
     lines.push("Allowed (best → worst):");
-    lines.push(allow.length ? "• " + allow.join("\n• ") : "• —");
+    for (const s of rule.allow) lines.push(`• ${s}`);
     lines.push("");
     lines.push("Blocked / stop using:");
-    lines.push(block.length ? "• " + block.join("\n• ") : "• —");
-
-    openExplain(`Table state: ${tableState || "—"}`, lines.join("\n"));
+    for (const s of rule.block) lines.push(`• ${s}`);
+    lines.push("");
+    lines.push("— — —");
+    lines.push("");
   }
 
-  // expose for inline onclick
-  window.openTableStateExplain = openTableStateExplain;
+  openExplainModal("Table state playbook (all buckets)", lines.join("\n"));
+}
 
-
-  on("expClose", "click", closeExplain);
+window.openTableStateExplain = openTableStateExplain;
+on("expClose", "click", closeExplain);
   on("expBackdrop", "click", closeExplain);
 
   // Junko quadrants: modal explain (analytics only)
