@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Roulette Trend Tracker • R2 • IRONING • v1.64</title>
+  <title>Roulette Trend Tracker • R2 • IRONING • v1.63</title>
   <style>
     :root{color-scheme:dark; --bg:#0b1220; --card:#0f1a2e; --muted:#94a3b8; --txt:#e5e7eb; --accent:#60a5fa; --warn:#fbbf24; --danger:#ef4444; --ok:#34d399; --chip:#111c33; --border:#1f2a44;}
     *{box-sizing:border-box}
@@ -85,8 +85,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: R2 • IRONING • v1.64 (baseline)</div>
-    <div class="build">R2 TRACKER — IRONING • v1.64 (baseline)</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: R2 • IRONING • v1.63 (baseline)</div>
+    <div class="build">R2 TRACKER — IRONING • v1.63 (baseline)</div>
     <div class="sub">Build date: <b>2026-01-09</b>. Tap spins on the keypad. Tracks last 10/15/20: columns, dozens, double-streets, red/black, high/low, even/odd, Junko quadrants. Saves on-device.</div>
 
     <div class="card">
@@ -2521,7 +2521,7 @@ function verticalMetrics(spinsChrono){
       // hits in last 15 spins (greens ignored implicitly)
       let hits15 = 0;
       for (const v of last15){
-        if (typeof v === "number" && nums.includes(v)) hits15+;
+        if (typeof v === "number" && nums.includes(v)) hits15++;
       }
       perDozen[d][c] = {age, hits15};
     });
@@ -2962,12 +2962,18 @@ function render() {
     const recent = windowValues();
     $("greenCount").textContent = String(recent.filter(isGreen).length);
 
+    // Session-wide arrays (newest-first) for exact ages (so we don't collapse >window to "15+")
+    const sessSpinObjs = spins.filter(x => x.s === sessionId); // newest-first objects {n,t,s}
+    const sessNums = sessSpinObjs.map(x => x.n);
+    const sessTotal = sessNums.length;
+
     const cts = counts(recent);
-    const cAges = colAges(recent);
-    const dAges = dozenAges(recent);
-    const fmtAgeCD = (a) => (a === 999 ? (recent.length + "+") : String(a));
-    $("cols").textContent = `${cts.c1} (${fmtAgeCD(cAges.c1)}) / ${cts.c2} (${fmtAgeCD(cAges.c2)}) / ${cts.c3} (${fmtAgeCD(cAges.c3)})`;
-    $("doz").textContent  = `${cts.d1} (${fmtAgeCD(dAges.d1)}) / ${cts.d2} (${fmtAgeCD(dAges.d2)}) / ${cts.d3} (${fmtAgeCD(dAges.d3)})`;
+    // Ages are session-wide (exact). Counts remain window-based.
+    const cAgesSess = colAges(sessNums);
+    const dAgesSess = dozenAges(sessNums);
+    const fmtAgeCD = (a) => (a === 999 ? String(sessTotal) : String(a));
+    $("cols").textContent = `${cts.c1} (${fmtAgeCD(cAgesSess.c1)}) / ${cts.c2} (${fmtAgeCD(cAgesSess.c2)}) / ${cts.c3} (${fmtAgeCD(cAgesSess.c3)})`;
+    $("doz").textContent  = `${cts.d1} (${fmtAgeCD(dAgesSess.d1)}) / ${cts.d2} (${fmtAgeCD(dAgesSess.d2)}) / ${cts.d3} (${fmtAgeCD(dAgesSess.d3)})`;
 
     const dsc = dsCounts(recent);
     $("ds").textContent = `D1 ${dsc.d1[0]}/${dsc.d1[1]}/${dsc.d1[2]} | D2 ${dsc.d2[0]}/${dsc.d2[1]}/${dsc.d2[2]} | D3 ${dsc.d3[0]}/${dsc.d3[1]}/${dsc.d3[2]}`;
@@ -2990,9 +2996,6 @@ function render() {
 const sinceGreen = Number.isFinite(gdc) ? gdc : 0;
 
 // Current session totals
-const sessSpinObjs = spins.filter(x => x.s === sessionId); // newest-first objects {n,t,s}
-const sessNums = sessSpinObjs.map(x => x.n);
-const sessTotal = sessNums.length;
 const sessGreens = sessNums.reduce((a, n) => a + (isGreen(n) ? 1 : 0), 0);
 
 
