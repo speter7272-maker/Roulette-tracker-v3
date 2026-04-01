@@ -112,8 +112,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: R2 • IRONING • v1.64.5 (play log + live mode)</div>
-    <div class="build">R2 TRACKER — IRONING • v1.64.5 (play log + live mode)</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: R2 • IRONING • v1.64.6 (keypad restored)</div>
+    <div class="build">R2 TRACKER — IRONING • v1.64.6 (keypad restored)</div>
     <div class="sub">Build date: <b>2026-01-10</b>. Mobile layout tuned for strategy reads: entry signals, dozens/columns imbalance, 10-2-Win readiness, Greenland/green status, and Junko quadrant counts. Saves on-device.</div>
 
     <div class="card">
@@ -530,8 +530,8 @@ const JUNKO_BET_NUMS = (() => {
   let tableMode = "CAN_SIT_OUT";
   let stateTracker = { current:"—", sinceSpinCount:0 };
   let perf = { actions: [], stats: {}, activePlay: null };
-  let lastStateLabel = null;
-  let stateStartSpinCount = 0;
+  let stateTracker.current = null;
+  let stateTracker.sinceSpinCount = 0;
 
   const trendDismissBtn = $("trendDismissBtn");
   const trendAlert = $("trendAlert");
@@ -3324,22 +3324,12 @@ $("gsah").textContent = `sinceGreen=${sinceGreen} • greens=${sessGreens}/${ses
 $("gsah2").textContent = "";
 
     $("state").textContent = scored.state;
-    if($("liveState")) $("liveState").textContent = scored.state;
-    if(repHeavy || dozSig.gap >= 5 || colSig.gap >= 5) stateSeverity = "Strong";
-    else if(dozSig.gap >= 3 || colSig.gap >= 3 || repNums.length || repSt.length) stateSeverity = "Moderate";
-    if($("state2")) $("state2").textContent = `Window: last ${windowN} • Session: ${sessionId} • Dur ${stateDuration}`;
-    if($("liveStateMeta")) $("liveStateMeta").textContent = `Dur ${stateDuration} spins • ${stateSeverity} • ${tableMode==="MUST_BET" ? "Live table" : "Machine"}`;
-    const qGap = Math.max(cts.gn,cts.ho,cts.lo,cts.m) - Math.min(cts.gn,cts.ho,cts.lo,cts.m);
-    if($("live102")) $("live102").textContent = `GN ${cts.gn} • HO ${cts.ho} • LO ${cts.lo} • M ${cts.m}`;
-    if($("live102Meta")) $("live102Meta").textContent = `Gap ${qGap} • ${qGap>=5 ? "EXTREME" : qGap>=3 ? "DRY" : "BALANCED"} • Best ${ten2.best.id}`;
-    if($("liveRepeat")) $("liveRepeat").textContent = `Nums ${repNums.length} • Streets ${repSt.length} • ${repHeavy ? "REPEAT-HEAVY" : "OK"}`;
-    if($("liveImbalance")) $("liveImbalance").textContent = `Dozen gap ${dozSig.gap} • Column gap ${colSig.gap}`;
-
-    if (scored.state !== lastStateLabel) {
-      lastStateLabel = scored.state;
-      stateStartSpinCount = spins.length;
+if (stateTracker.current !== scored.state) {
+      stateTracker.current = scored.state;
+      stateTracker.sinceSpinCount = spins.length;
+      save();
     }
-    const stateDuration = Math.max(0, spins.length - stateStartSpinCount);
+    const stateDuration = Math.max(0, spins.length - (Number(stateTracker.sinceSpinCount) || 0));
     let stateSeverity = "Mild";
     if (repHeavy || repSt.length >= 3 || repNums.length >= 2) stateSeverity = "Strong";
     else if (dozSig.gap >= 3 || colSig.gap >= 3) stateSeverity = "Moderate";
@@ -3351,12 +3341,14 @@ $("gsah2").textContent = "";
     const qDry = Object.entries(qHits).sort((a,b)=>a[1]-b[1] || a[0].localeCompare(b[0]))[0];
     const qMode = qGap >= 5 ? "EXTREME" : (qGap >= 3 ? `DRY ${qDry[0]}` : "BALANCED");
 
-    $("liveState").textContent = scored.state;
-    $("liveStateMeta").textContent = `Dur ${stateDuration} spins • ${stateSeverity}`;
-    $("live102").textContent = `GN ${cts.gn} | HO ${cts.ho} | LO ${cts.lo} | M ${cts.m}`;
-    $("live102Meta").textContent = `Gap ${qGap} • ${qMode} • Hot ${qHot[0]}`;
-    $("liveRepeat").textContent = `Nums ${repNums.length} • Streets ${repSt.length} • ${repHeavy ? 'Repeat-Heavy' : 'Calm'}`;
-    $("liveImbalance").textContent = `Dozen gap ${dozSig.gap} • Column gap ${colSig.gap} • Driest corner ${(($("corners5")&&$("corners5").textContent)||'—').replace(/^D5C — /,'')}`;
+    if ($("state2")) $("state2").textContent = `Window: last ${windowN} • Session: ${sessionId} • Dur ${stateDuration}`;
+    if ($("liveState")) $("liveState").textContent = scored.state;
+    if ($("liveStateMeta")) $("liveStateMeta").textContent = `Dur ${stateDuration} spins • ${stateSeverity} • ${tableMode==="MUST_BET" ? "Live table" : "Machine"}`;
+    if ($("live102")) $("live102").textContent = `GN ${cts.gn} | HO ${cts.ho} | LO ${cts.lo} | M ${cts.m}`;
+    if ($("live102Meta")) $("live102Meta").textContent = `Gap ${qGap} • ${qMode} • Hot ${qHot[0]}`;
+    if ($("liveRepeat")) $("liveRepeat").textContent = `Nums ${repNums.length} • Streets ${repSt.length} • ${repHeavy ? 'Repeat-Heavy' : 'Calm'}`;
+    if ($("liveImbalance")) $("liveImbalance").textContent = `Dozen gap ${dozSig.gap} • Column gap ${colSig.gap} • Driest corner ${(($("corners5")&&$("corners5").textContent)||'—').replace(/^D5C — /,'')}`;
+
 
   // Trend → strategy guardrails (user-defined)
   // IF Repeat-Heavy → 12 Soldiers (alt: Iron Turtle v2)
