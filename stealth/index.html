@@ -112,8 +112,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: R2 • IRONING • v1.65.1 (no session mode stable)</div>
-    <div class="build">R2 TRACKER — IRONING • v1.65.1 (no session mode stable)</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: R2 • IRONING • v1.65.2 (keypad count hard sync)</div>
+    <div class="build">R2 TRACKER — IRONING • v1.65.2 (keypad count hard sync)</div>
     <div class="sub">Build date: <b>2026-01-10</b>. No-session mode. Clear between sessions and rename the Casino field manually. Mobile layout tuned for strategy reads: entry signals, dozens/columns imbalance, 10-2-Win readiness, Greenland/green status, and Junko quadrant counts. Saves on-device.</div>
 
     <div class="card">
@@ -160,7 +160,7 @@
           <div class="hr"></div>
 
           <div id="keypadAnchor" class="sectionTitle" style="margin-bottom:0">Tap keypad</div>
-          <div id="kpDebug" class="small mono" style="margin:6px 0 10px; opacity:.9">Keypad taps: 0</div>
+          <div id="kpDebug" class="small mono" style="margin:6px 0 10px; opacity:.9">Spin count: 0</div>
           <div class="kbd" id="kbd"></div>
         </div>
 
@@ -1356,8 +1356,8 @@ on("expClose", "click", closeExplain);
     const kbd = $("kbd");
     if (!kbd) return;
 
-    // Debug counter (visible on-page)
-    if (!window.__kpCount) window.__kpCount = 0;
+    // Debug counter is always derived from stored spins length
+    window.__kpCount = Array.isArray(spins) ? spins.length : 0;
 
     const keys = ["00",0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36];
     kbd.innerHTML = "";
@@ -1369,11 +1369,10 @@ on("expClose", "click", closeExplain);
       if (now - window.__kpLastTap < 80) return;
       window.__kpLastTap = now;
 
-      window.__kpCount += 1;
-      const dbg = $("kpDebug");
       addSpin(k);
-      window.__kpCount = spins.length;
-      if (dbg) dbg.textContent = "Keypad taps: " + window.__kpCount;
+      const dbg = $("kpDebug");
+      window.__kpCount = Array.isArray(spins) ? spins.length : 0;
+      if (dbg) dbg.textContent = "Spin count: " + window.__kpCount;
     };
 
     keys.forEach(k => {
@@ -1488,6 +1487,7 @@ on("expClose", "click", closeExplain);
   function undo() {
     if(spins.length===0) return;
     spins.shift();
+    window.__kpCount = spins.length;
     save();
     render();
   }
@@ -3258,9 +3258,9 @@ function render() {
     const recent = windowValues();
     $("greenCount").textContent = String(recent.filter(isGreen).length);
     try {
-      window.__kpCount = spins.length;
+      window.__kpCount = Array.isArray(spins) ? spins.length : 0;
       const dbg = $("kpDebug");
-      if (dbg) dbg.textContent = "Keypad taps: " + window.__kpCount;
+      if (dbg) dbg.textContent = "Spin count: " + window.__kpCount;
     } catch(_) {}
 
     // Session-wide arrays (newest-first) for exact ages (so we don't collapse >window to "15+")
@@ -3724,6 +3724,10 @@ if (db.ok) {
     trendDismissBtn.onclick = function(){ if(trendAlert) trendAlert.style.display="none"; };
   }
   render();
+  try {
+    const dbg = $("kpDebug");
+    if (dbg) dbg.textContent = "Spin count: " + (Array.isArray(spins) ? spins.length : 0);
+  } catch(_) {}
   setTimeout(() => { try { ensureKeypad(); } catch(_) {} }, 50);
   setTimeout(() => { try { ensureKeypad(); } catch(_) {} }, 300);
   setTimeout(() => { try { ensureKeypad(); } catch(_) {} }, 800);
