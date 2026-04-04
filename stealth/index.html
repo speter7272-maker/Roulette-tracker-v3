@@ -112,8 +112,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: R2 • IRONING • v1.65.2 (keypad count hard sync)</div>
-    <div class="build">R2 TRACKER — IRONING • v1.65.2 (keypad count hard sync)</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: R2 • IRONING • v1.65.4 (render hardening)</div>
+    <div class="build">R2 TRACKER — IRONING • v1.65.4 (render hardening)</div>
     <div class="sub">Build date: <b>2026-01-10</b>. No-session mode. Clear between sessions and rename the Casino field manually. Mobile layout tuned for strategy reads: entry signals, dozens/columns imbalance, 10-2-Win readiness, Greenland/green status, and Junko quadrant counts. Saves on-device.</div>
 
     <div class="card">
@@ -190,7 +190,10 @@
 
         <div class="card tight">
           <div class="sectionTitle">Number history (newest first)</div>
-          <textarea id="lastList" readonly placeholder="No spins yet." style="min-height:140px; max-height:320px;"></textarea>
+          <div class="small mono" id="historyMeta" style="margin:0 0 8px; opacity:.9">Stored spins: 0</div>
+          <div class="small mono" id="historyWindowMeta" style="margin:0 0 6px; opacity:.9">Last 15 used for stats: —</div>
+          <div class="small mono" id="renderStatus" style="margin:0 0 10px; opacity:.75">Render: OK</div>
+          <div id="lastList" class="mono" style="min-height:140px; max-height:320px; overflow:auto; white-space:normal; line-height:1.45; border:1px solid rgba(255,255,255,.08); border-radius:18px; padding:16px; background:rgba(6,18,46,.65);">No spins yet.</div>
           <div class="hr"></div>
           <div class="row" style="gap:10px;flex-wrap:wrap">
             <button class="btn" id="copyCsvBtn" type="button">Copy CSV</button>
@@ -714,6 +717,19 @@ const JUNKO_BET_NUMS = (() => {
     rows.sort((a,b)=> (b.age-a.age) || a.id.localeCompare(b.id));
     const best = rows[0];
     return {best, ready: best.age >= 7};
+  }
+
+  function safeScoreStrategies(vals){
+    try {
+      return scoreStrategies(vals);
+    } catch(e) {
+      console.warn("scoreStrategies fallback", e);
+      return {
+        state: "Even",
+        primary: { mode:"COMP", name:"Sit out / Flat bet", why:"Scoring fallback after render-safe recovery." },
+        plays: []
+      };
+    }
   }
 
   function classifyRepeatHeavyStage(repNums, repSt, cts){
@@ -1541,10 +1557,8 @@ on("expClose", "click", closeExplain);
       await navigator.clipboard.writeText(csv);
       alert("CSV copied.");
     } catch(_) {
-      $("lastList").value = csv;
-      $("lastList").focus();
-      $("lastList").select();
-      alert("Clipboard blocked. CSV placed in the box; copy manually.");
+      $("lastList").textContent = csv;
+      alert("Clipboard blocked. CSV placed in the history box; copy manually.");
     }
   }
   function downloadCsv() {
@@ -3296,7 +3310,14 @@ function render() {
     $("columnSignal").textContent = `DRY ${colSig.driest.label} (${colSig.driest.hits}, ${labelAge(colSig.driest.age, sessTotal)}) • HOT ${colSig.hottest.label} (${colSig.hottest.hits}, ${labelAge(colSig.hottest.age, sessTotal)})`;
     $("columnSignal2").textContent = `${colSig.state} imbalance • gap ${colSig.gap} • Double Cross ${colSig.gap >= 3 && dozSig.gap >= 3 ? 'READY' : 'WAIT'}`;
 
-    const scored = scoreStrategies(recent);
+    const fullHistoryText = sessSpinObjs.length
+      ? sessSpinObjs.map(x => (x.n==="00"?"00":String(x.n))).join(", ")
+      : "No spins yet.";
+    $("lastList").textContent = fullHistoryText;
+    if ($("historyMeta")) $("historyMeta").textContent = `Stored spins: ${sessSpinObjs.length}`;
+    if ($("historyWindowMeta")) $("historyWindowMeta").textContent = `Last ${windowN} used for stats: ${recent.length ? recent.map(x => x==="00" ? "00" : String(x)).join(", ") : "—"}`;
+
+    const scored = safeScoreStrategies(recent);
     const sinceGreen = Number.isFinite(gdc) ? gdc : 0;
     const repNums = findRepeatNumbers(recent, 5);
     const repSt = findRepeatStreets(recent, 5);
@@ -3312,8 +3333,6 @@ function render() {
     ];
     $("strategyGates").textContent = gateBits.join(' • ');
     $("strategyGates2").textContent = `Repeat-heavy=${repHeavy ? 'yes' : 'no'} • Tupelo ${dozSig.gap >= 3 ? 'READY' : 'WAIT'} • Double Cross ${colSig.gap >= 3 && dozSig.gap >= 3 ? 'READY' : 'WAIT'}`;
-
-    $("lastList").value = sessSpinObjs.map(x => (x.n==="00"?"00":String(x.n))).join(", ");
 
     $("recommend").textContent = `${scored.primary.mode} — ${scored.primary.name}`;
     $("reason").textContent = scored.primary.why || "—";
@@ -3479,6 +3498,7 @@ if (db.ok) {
       b.addEventListener("click", () => showExplain(b.getAttribute("data-exp")));
     });
 
+    if ($("renderStatus")) $("renderStatus").textContent = `Render: OK • ${new Date().toLocaleTimeString()}`;
     renderPerformance();
     applyTableModeUI();
 
@@ -3496,6 +3516,7 @@ if (db.ok) {
   } catch(e) {
     console.error('Render error', e);
     try { const rr = $("reason"); if (rr) rr.textContent = 'Render error: ' + (e && (e.message || e.toString()) || e); } catch(_) {}
+    try { const rs = $("renderStatus"); if (rs) rs.textContent = 'Render error: ' + (e && (e.message || e.toString()) || e); } catch(_) {}
     try { const rc = $("recommend"); if (rc && rc.textContent === 'Sit out') rc.textContent = 'Render error'; } catch(_) {}
   }
 // Keep keypad alive on mobile/Safari
