@@ -112,8 +112,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: R2 • IRONING • v1.65.5 (corner live sync)</div>
-    <div class="build">R2 TRACKER — IRONING • v1.65.5 (corner live sync)</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: R2 • IRONING • v1.65.6 (boss integration)</div>
+    <div class="build">R2 TRACKER — IRONING • v1.65.6 (boss integration)</div>
     <div class="sub">Build date: <b>2026-01-10</b>. No-session mode. Clear between sessions and rename the Casino field manually. Mobile layout tuned for strategy reads: entry signals, dozens/columns imbalance, 10-2-Win readiness, Greenland/green status, and Junko quadrant counts. Saves on-device.</div>
 
     <div class="card">
@@ -730,6 +730,19 @@ const JUNKO_BET_NUMS = (() => {
         plays: []
       };
     }
+  }
+
+
+  function chooseBossVariant(dozCounts){
+    const d1 = Number((dozCounts && dozCounts.d1) || 0);
+    const d2 = Number((dozCounts && dozCounts.d2) || 0);
+    const d3 = Number((dozCounts && dozCounts.d3) || 0);
+    const entries = [
+      {id:"LOW", n:d1},
+      {id:"MIDDLE", n:d2},
+      {id:"HIGH", n:d3}
+    ].sort((a,b)=> a.n - b.n || a.id.localeCompare(b.id));
+    return entries[0].id;
   }
 
   function classifyRepeatHeavyStage(repNums, repSt, cts){
@@ -2584,15 +2597,29 @@ function scoreStrategies(vals) {
       primary = {name:"Sit out / Flat bet", score:60, why:"Weak repeat-heavy signal.", mode:"COMP"};
     }
   } else if(state === "Even"){
-    // Dozens Overload v2 not present; default to Easy Street.
-    const e = pickByName("Easy Street — Cold Side (Option A′ Late Straights)");
-    if(e) primary = {...e, mode: primary.mode || "CASH"};
+    const bossVar = chooseBossVariant(c15);
+    if(bossVar === "LOW"){
+      primary = {name:"The Boss — Low", score:84, why:"Balanced / low-volatility table. Low section is currently driest, so use Boss as the controlled option.", mode:"CASH"};
+    } else if(bossVar === "MIDDLE"){
+      primary = {name:"The Boss — Middle", score:84, why:"Balanced / low-volatility table. Middle section is currently driest, so use Boss as the controlled option.", mode:"CASH"};
+    } else {
+      primary = {name:"The Boss — High", score:84, why:"Balanced / low-volatility table. High section is currently driest, so use Boss as the controlled option.", mode:"CASH"};
+    }
   } else if(state === "Cold/Drought"){
     const six = pickByName("6 Diamonds + 0/00 (Primary)");
     if(six) primary = {...six, mode:"COMP"};
   } else {
-    // Else: Sit out or flat bet.
-    if(primary && primary.score < 80){
+    const dozenGap = Math.max(c15.d1,c15.d2,c15.d3) - Math.min(c15.d1,c15.d2,c15.d3);
+    const bossVar = chooseBossVariant(c15);
+    if(!repHeavy && dozenGap >= 3 && dozenGap <= 6){
+      if(bossVar === "LOW"){
+        primary = {name:"The Boss — Low", score:86, why:"Mild-to-moderate imbalance without repeat-heavy pressure. Controlled Boss entry in the low section.", mode:"CASH"};
+      } else if(bossVar === "MIDDLE"){
+        primary = {name:"The Boss — Middle", score:86, why:"Mild-to-moderate imbalance without repeat-heavy pressure. Controlled Boss entry in the middle section.", mode:"CASH"};
+      } else {
+        primary = {name:"The Boss — High", score:86, why:"Mild-to-moderate imbalance without repeat-heavy pressure. Controlled Boss entry in the high section.", mode:"CASH"};
+      }
+    } else if(primary && primary.score < 80){
       if((tableMode || "CAN_SIT_OUT") === "MUST_BET"){
         const fallback = pickByName("6 Diamonds + 0/00 (Primary)") || pickByName("WB-RTB");
         if(fallback) primary = {...fallback, mode:"COMP", why:"Live table mode: cannot sit out, so default to controlled fallback."};
