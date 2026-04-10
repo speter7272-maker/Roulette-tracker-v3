@@ -112,8 +112,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: R2 • IRONING • v1.65.7 (boss tuned safe)</div>
-    <div class="build">R2 TRACKER — IRONING • v1.65.7 (boss tuned safe)</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: R2 • IRONING • v1.65.9 (tight triggers)</div>
+    <div class="build">R2 TRACKER — IRONING • v1.65.9 (tight triggers)</div>
     <div class="sub">Build date: <b>2026-01-10</b>. No-session mode. Clear between sessions and rename the Casino field manually. Mobile layout tuned for strategy reads: entry signals, dozens/columns imbalance, 10-2-Win readiness, Greenland/green status, and Junko quadrant counts. Saves on-device.</div>
 
     <div class="card">
@@ -3239,6 +3239,36 @@ function clearPerformance(){
   save();
   render();
 }
+
+function isStrongClusterSignal(vals){
+  try{
+    const arr = (vals || []).filter(v => typeof v === "number" && v >= 1 && v <= 36);
+    if (arr.length < 5) return false;
+    const streetOf = (n) => Math.floor((n - 1) / 3) + 1;
+    const dozenOf = (n) => (n <= 12 ? 1 : (n <= 24 ? 2 : 3));
+
+    const last5 = arr.slice(0, 5);
+    const st = {};
+    const dz = {1:0,2:0,3:0};
+    const num = {};
+
+    for (const n of last5){
+      const s = streetOf(n);
+      st[s] = (st[s] || 0) + 1;
+      dz[dozenOf(n)] += 1;
+      num[n] = (num[n] || 0) + 1;
+    }
+
+    const maxStreet = Math.max(...Object.values(st));
+    const repeatNums = Object.values(num).filter(v => v >= 2).length;
+    const maxDozen = Math.max(dz[1], dz[2], dz[3]);
+
+    return (maxStreet >= 3) || (repeatNums >= 2 && maxDozen >= 3);
+  } catch(e){
+    return false;
+  }
+}
+
 function renderPerformance(){
   const body = $("perfBody");
   if(!body) return;
