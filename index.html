@@ -1,9 +1,10 @@
+<!-- Cassandra Corners Integrated v1.65.11 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Roulette Trend Tracker • FULL • CASH PRIORITY v15.3.2 LOCKED.1.41</title>
+  <title>Roulette Trend Tracker • R2 • IRONING • v1.64.11</title>
   <style>
     :root{color-scheme:dark; --bg:#0b1220; --card:#0f1a2e; --muted:#94a3b8; --txt:#e5e7eb; --accent:#60a5fa; --warn:#fbbf24; --danger:#ef4444; --ok:#34d399; --chip:#111c33; --border:#1f2a44;}
     *{box-sizing:border-box}
@@ -37,6 +38,12 @@
     .key:active{transform:translateY(1px)}
     .stat{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
     .box{background:#0c1730;border:1px solid var(--border);border-radius:14px;padding:10px}
+
+.box.alert{
+  border-color: rgba(251,191,36,0.55);
+  background: rgba(251,191,36,0.08);
+  box-shadow: 0 0 0 1px rgba(251,191,36,0.25) inset;
+}
     .k{color:var(--muted);font-size:11px}
     .v{font-size:16px;font-weight:900;margin-top:2px}
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
@@ -73,21 +80,48 @@
     }
   
     .bigWhite{font-size:26px;font-weight:900;color:#ffffff;letter-spacing:0.2px}
+    .sidecol{display:flex;flex-direction:column;gap:10px}
+    .card.tight{padding:12px}
+    .card.sticky{position:sticky;top:10px;z-index:40}
+    .snapshotGrid{display:grid;grid-template-columns:1fr;gap:8px}
+    .sectionTitle{font-weight:900;margin-bottom:8px}
+    .stat .box.full{grid-column:1/-1}
+    .signalGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .decision{margin-top:6px;font-size:12px;color:#cbd5e1;line-height:1.35}
+    .decision b{color:#fff}
+    .mutedLine{font-size:11px;color:var(--muted);line-height:1.35}
+    @media(max-width:859px){
+      .wrap{padding:14px 10px 34px}
+      h1{font-size:24px}
+      .stat,.signalGrid{grid-template-columns:1fr}
+      .v{font-size:15px}
+    }
+  
+    .toolbarToggle{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+    .seg{display:inline-flex;background:var(--chip);border:1px solid var(--border);border-radius:12px;padding:3px;gap:4px}
+    .seg button{appearance:none;border:0;background:transparent;color:var(--muted);padding:8px 10px;border-radius:9px;font-weight:800;cursor:pointer}
+    .seg button.active{background:rgba(96,165,250,.18);color:var(--txt);border:1px solid rgba(96,165,250,.35)}
+    .miniGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .perfTable{width:100%;border-collapse:collapse;font-size:12px}
+    .perfTable th,.perfTable td{padding:6px 4px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;vertical-align:top}
+    .perfTable th{color:var(--muted);font-weight:800}
+    .perfTable td.num{text-align:right;font-variant-numeric:tabular-nums}
+
   </style>
 
 </head>
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: 2026-01-13 • FULL • CASH PRIORITY v15.3.2 LOCKED.1.41</div>
-    <div class="build">FULL TRACKER — CASH PRIORITY + NEW STRATEGIES • v15.3.2 LOCKED.1.41</div>
-    <div class="sub">Build date: <b>2026-01-09</b>. Tap spins on the keypad. Tracks last 10/15/20: columns, dozens, double-streets, red/black, high/low, even/odd, Junko quadrants. Saves on-device.</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: R2 • IRONING • v1.65.11 (cassandra integration)</div>
+    <div class="build">R2 TRACKER — IRONING • v1.65.11 (cassandra integration)</div>
+    <div class="sub">Build date: <b>2026-01-10</b>. No-session mode. Clear between sessions and rename the Casino field manually. Mobile layout tuned for strategy reads: entry signals, dozens/columns imbalance, 10-2-Win readiness, Greenland/green status, and Junko quadrant counts. Saves on-device.</div>
 
     <div class="card">
       <div class="row">
         <div class="pill">Window: <b id="winLabel">Last 15</b></div>
         <div class="pill">Spins: <b id="spinCount">0</b></div>
-        <div class="pill">Session: <b id="sessionCount">0</b></div>
+        <div class="pill">List: <b id="sessionCount">0</b></div>
         <div class="pill">Green: <b id="greenCount">0</b></div>
           <div class="pill">GDC: <b id="greenDrought">0</b></div>
       </div>
@@ -97,45 +131,80 @@
           <input id="casinoInput" type="text" placeholder="e.g., Caesars / Harrah’s Joliet" style="flex:1; min-width:180px" />
         </label>
       </div>
+      <div class="toolbarToggle">
+        <div class="pill">Table mode</div>
+        <div class="seg" id="tableModeSeg">
+          <button type="button" id="modeCanSitBtn" class="active">Machine • can sit out</button>
+          <button type="button" id="modeMustBetBtn">Live table • must bet</button>
+        </div>
+      </div>
       <div class="row" style="margin-top:10px">
         <button class="btn" id="undoBtn" type="button">Undo</button>
         <button class="btn danger" id="clearBtn" type="button">Clear</button>
         <button class="btn" id="use15Btn" type="button">Use last 15</button>
         <button class="btn" id="use10Btn" type="button">Use last 10</button>
         <button class="btn" id="use20Btn" type="button">Use last 20</button>
-        <button class="btn" id="newSessionBtn" type="button">New Session</button>
+        <button class="btn" id="newSessionBtn" type="button">Reset Label</button>
       </div>
     </div>
 
     <div class="grid">
-      <div class="card">
-        <div style="font-weight:900;margin-bottom:8px">Quick input</div>
-        <div class="row">
-          <input id="manualInput" type="text" placeholder="Type: 0–36 or 00" inputmode="text" />
-          <button class="btn primary" id="addManualBtn" type="button">Add</button>
+      <div class="sidecol">
+        <div class="card">
+          <div class="sectionTitle">Quick input</div>
+          <div class="row">
+            <input id="manualInput" type="text" placeholder="Type: 0–36 or 00" inputmode="text" />
+            <button class="btn primary" id="addManualBtn" type="button">Add</button>
+          </div>
+          <div class="small" style="margin-top:8px">Tip: On iPhone, the keypad is usually fastest. Manual input is a backup.</div>
+
+          <div class="hr"></div>
+
+          <div id="keypadAnchor" class="sectionTitle" style="margin-bottom:0">Tap keypad</div>
+          <div id="kpDebug" class="small mono" style="margin:6px 0 10px; opacity:.9">Spin count: 0</div>
+          <div class="kbd" id="kbd"></div>
         </div>
-        <div class="small" style="margin-top:8px">Tip: On iPhone, the keypad is usually fastest. Manual input is a backup.</div>
 
-        <div class="hr"></div>
+        <div class="card sticky tight">
+          <div class="sectionTitle">Live snapshot</div>
+          <div class="snapshotGrid">
+            <div class="box">
+              <div class="k">Table state</div>
+              <div class="v" id="liveState">—</div>
+              <div class="k" id="liveStateMeta">—</div>
+            </div>
+            <div class="box">
+              <div class="k">10-2-Win sectors</div>
+              <div class="v mono" id="live102">—</div>
+              <div class="k" id="live102Meta">—</div>
+            </div>
+            <div class="box">
+              <div class="k">Repeat pressure</div>
+              <div class="v mono" id="liveRepeat">—</div>
+            </div>
+            <div class="box">
+              <div class="k">Imbalance</div>
+              <div class="v mono" id="liveImbalance">—</div>
+            </div>
+          </div>
+        </div>
 
-        <div id="keypadAnchor" style="font-weight:900;margin-bottom:8px">Tap keypad</div>
-        <div id="kpDebug" class="small mono" style="margin:6px 0 10px; opacity:.9">Keypad taps: 0</div>
-        <div class="kbd" id="kbd"></div>
+        <div class="card tight">
+          <div class="sectionTitle">Number history (newest first)</div>
+          <div class="small mono" id="historyMeta" style="margin:0 0 8px; opacity:.9">Stored spins: 0</div>
+          <div class="small mono" id="historyWindowMeta" style="margin:0 0 6px; opacity:.9">Last 15 used for stats: —</div>
+          <div class="small mono" id="renderStatus" style="margin:0 0 10px; opacity:.75">Render: OK</div>
+          <div id="lastList" class="mono" style="min-height:140px; max-height:320px; overflow:auto; white-space:normal; line-height:1.45; border:1px solid rgba(255,255,255,.08); border-radius:18px; padding:16px; background:rgba(6,18,46,.65);">No spins yet.</div>
+          <div class="hr"></div>
+          <div class="row" style="gap:10px;flex-wrap:wrap">
+            <button class="btn" id="copyCsvBtn" type="button">Copy CSV</button>
+            <button class="btn" id="downloadCsvBtn" type="button">Download CSV</button>
+            <button class="btn" id="wheelViewBtn" type="button">Wheel View</button>
+          </div>
+        </div>
       </div>
 
-      <div class="hr"></div>
-
-      <div style="font-weight:900;margin-bottom:8px">Last 20 (newest first)</div>
-        <textarea id="lastList" readonly placeholder="No spins yet."></textarea>
-
-        <div class="hr"></div>
-
-        <div class="row" style="gap:10px;flex-wrap:wrap">
-          <button class="btn" id="copyCsvBtn" type="button">Copy CSV</button>
-          <button class="btn" id="downloadCsvBtn" type="button">Download CSV</button>
-          <button class="btn" id="wheelViewBtn" type="button">Wheel View (Last 20)</button>
-        </div>
-
+      <div class="sidecol">
       <div class="card">
         <div style="font-weight:900;margin-bottom:8px">Trend + tracking</div>
 
@@ -160,6 +229,25 @@
             <div class="k">Table state</div>
             <div class="v" id="state">—</div>
             <div class="k" id="state2">—</div>
+          <button class="btn" id="tableStateExplainBtn" onclick="openTableStateExplain()" style="margin-top:10px; padding:10px 14px; font-size:14px;">Explain</button>
+</div>
+        </div>
+
+        <div class="signalGrid" style="margin-top:8px">
+          <div class="box">
+            <div class="k">Dozen signal</div>
+            <div class="v mono" id="dozenSignal">—</div>
+            <div class="k" id="dozenSignal2">—</div>
+          </div>
+          <div class="box">
+            <div class="k">Column signal</div>
+            <div class="v mono" id="columnSignal">—</div>
+            <div class="k" id="columnSignal2">—</div>
+          </div>
+          <div class="box full">
+            <div class="k">Strategy gates</div>
+            <div class="v mono" id="strategyGates">—</div>
+            <div class="k" id="strategyGates2">—</div>
           </div>
         </div>
           <div class="box">
@@ -168,14 +256,14 @@
             <div class="k" id="repNums2">—</div>
           </div>
           <div class="box">
-            <div class="k">Repeat streets (≤3 spins)</div>
+            <div class="k">Repeat streets (≤5 spins; last15)</div>
             <div class="v mono" id="repStreets">—</div>
             <div class="k" id="repStreets2">—</div>
           </div>
-          <div class="box">
-            <div class="k">Hydra coldest 4 (since green)</div>
-            <div class="v mono" id="hydraCold4">—</div>
-            <div class="k" id="hydraCold4b">—</div>
+          <div class="box" id="verticalColsBox">
+            <div class="k">Vertical Columns (driest + repeats)</div>
+            <div class="v mono" id="verticalCols">—</div>
+            <div class="k" id="verticalCols2">—</div>
           </div>
           <div class="box">
             <div class="k">Dirty Bird DB‑CDS (live)</div>
@@ -224,6 +312,53 @@
 <div style="font-weight:900;margin-bottom:8px">Top 3 strategies right now</div>
 
         <div id="topPlays" class="topplays"></div>
+
+
+        <div class="card" style="margin-top:14px;">
+          <div style="font-weight:900">Play / sit-out log</div>
+          <div class="small" style="margin-top:6px">Track what you actually did at the table and settle each play manually.</div>
+          <div class="miniGrid" style="margin-top:10px">
+            <div class="box">
+              <div class="k">Current action</div>
+              <div class="v mono" id="currentAction">None logged</div>
+              <div class="k" id="currentActionMeta">—</div>
+            </div>
+            <div class="box">
+              <div class="k">Session totals</div>
+              <div class="v mono" id="sessionActionTotals">Play 0 • Sit 0</div>
+              <div class="k" id="sessionActionMeta">Wins 0 • Losses 0 • PnL 0u</div>
+            </div>
+          </div>
+          <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap">
+            <button class="btn primary" id="logPlayBtn" type="button">Log Play</button>
+            <button class="btn" id="logSitBtn" type="button">Log Sit Out</button>
+            <button class="btn" id="settleWinBtn" type="button">Settle Win</button>
+            <button class="btn" id="settleLossBtn" type="button">Settle Loss</button>
+            <button class="btn" id="settlePushBtn" type="button">Settle Push</button>
+          </div>
+          <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap">
+            <label class="pill" style="gap:8px;align-items:center">
+              PnL units:
+              <input id="settleUnitsInput" type="text" value="15" inputmode="numeric" style="width:72px" />
+            </label>
+            <button class="btn danger" id="clearPerfBtn" type="button">Clear performance</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:14px;">
+          <div style="font-weight:900">Strategy performance</div>
+          <div class="small" style="margin-top:6px">Manual tracker for how each strategy is doing in real play.</div>
+          <div style="overflow:auto;margin-top:10px">
+            <table class="perfTable">
+              <thead>
+                <tr><th>Strategy</th><th class="num">Play</th><th class="num">Sit</th><th class="num">W</th><th class="num">L</th><th class="num">Push</th><th class="num">PnL</th></tr>
+              </thead>
+              <tbody id="perfBody">
+                <tr><td colspan="7" class="small">No play log yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
 
         <div class="hr"></div>
 
@@ -280,7 +415,7 @@
     <div class="modalCard">
       <div class="modalHeader">
         <div>
-          <div class="h2" style="margin:0;">American Wheel — Last 20</div>
+          <div class="h2" style="margin:0;">American Wheel — Recent History</div>
           <div class="hint" id="wheelSubtitle" style="margin-top:4px;">Radial bars show hit count per pocket (most recent 20 spins).</div>
         </div>
         <button class="btn" id="wheelCloseBtn" type="button">Close</button>
@@ -293,7 +428,7 @@
   </div>
 <script>
 
-  console.log("Roulette Tracker BUILD v15.3.2 LOCKED (scoreTrinity fix)");
+  console.log("Roulette Tracker BUILD v1.64.1 (render + history fix)");
 
   // DOM helpers
   const $ = (id) => document.getElementById(id);
@@ -306,8 +441,8 @@
   }
 
 document.addEventListener('DOMContentLoaded', () => {
-  const STORAGE_KEY = "roulette_trend_tracker_base_keypad_tracking_v1";
-  const ACTIVE_KEY = "roulette_active_strategy_v1";
+  const STORAGE_KEY = "roulette_trend_tracker_R2_base_keypad_tracking_v1_643";
+  const ACTIVE_KEY = "roulette_R2_active_strategy_v1_643";
   const RED = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
   const BLACK = new Set([2,4,6,8,10,11,13,15,17,20,22,24,26,28,29,31,33,35]);
 
@@ -395,7 +530,9 @@ const JUNKO_BET_NUMS = (() => {
   };
 
   let windowN = 15;
-  let sessionId = 1;
+  let tableMode = "CAN_SIT_OUT";
+  let stateTracker = { current:"—", sinceSpinCount:0 };
+  let perf = { actions: [], stats: {}, activePlay: null };
 
   const trendDismissBtn = $("trendDismissBtn");
   const trendAlert = $("trendAlert");
@@ -550,6 +687,80 @@ const JUNKO_BET_NUMS = (() => {
     }
     return {flag:false, text:"—"};
   }
+
+  function rank3Signals(hitsMap, agesMap, prefix){
+    const rows = [1,2,3].map(i => ({
+      key: `${prefix}${i}`,
+      label: `${prefix.toUpperCase()}${i}`,
+      hits: Number(hitsMap[`${prefix}${i}`] || 0),
+      age: Number(agesMap[`${prefix}${i}`] ?? 999)
+    }));
+    const driest = [...rows].sort((a,b)=> (a.hits-b.hits) || (b.age-a.age) || a.label.localeCompare(b.label))[0];
+    const hottest = [...rows].sort((a,b)=> (b.hits-a.hits) || (a.age-b.age) || a.label.localeCompare(b.label))[0];
+    const maxHits = Math.max(...rows.map(r=>r.hits));
+    const minHits = Math.min(...rows.map(r=>r.hits));
+    const gap = maxHits - minHits;
+    const state = gap >= 5 ? 'STRONG' : (gap >= 3 ? 'MODERATE' : 'BALANCED');
+    return {rows, driest, hottest, gap, state};
+  }
+
+  function labelAge(a, total){
+    return a === 999 ? `${total}+` : String(a);
+  }
+
+  function ready102Win(jAges){
+    const rows = [
+      {id:'GN', age:jAges.gn},
+      {id:'HO', age:jAges.ho},
+      {id:'LO', age:jAges.lo},
+      {id:'M', age:jAges.m}
+    ].map(x => ({...x, age: x.age === 999 ? 999 : Number(x.age)}));
+    rows.sort((a,b)=> (b.age-a.age) || a.id.localeCompare(b.id));
+    const best = rows[0];
+    return {best, ready: best.age >= 7};
+  }
+
+  function safeScoreStrategies(vals){
+    try {
+      return scoreStrategies(vals);
+    } catch(e) {
+      console.warn("scoreStrategies fallback", e);
+      return {
+        state: "Even",
+        primary: { mode:"COMP", name:"Sit out / Flat bet", why:"Scoring fallback after render-safe recovery." },
+        plays: []
+      };
+    }
+  }
+
+  
+function chooseBossVariantSafe(cts){
+  try{
+    const d1 = Number(cts?.d1||0);
+    const d2 = Number(cts?.d2||0);
+    const d3 = Number(cts?.d3||0);
+    const arr = [{k:"LOW",v:d1},{k:"MIDDLE",v:d2},{k:"HIGH",v:d3}];
+    arr.sort((a,b)=>a.v-b.v);
+    return arr[0].k;
+  }catch(e){
+    return "LOW";
+  }
+}
+function classifyRepeatHeavyStage(repNums, repSt, cts){
+    const safeNums = Array.isArray(repNums) ? repNums.length : 0;
+    const safeSt = Array.isArray(repSt) ? repSt.length : 0;
+    const d1 = Number((cts && cts.d1) || 0);
+    const d2 = Number((cts && cts.d2) || 0);
+    const d3 = Number((cts && cts.d3) || 0);
+    const dozenMax = Math.max(d1, d2, d3);
+
+    if (safeSt >= 3 && dozenMax >= 7) return "DOMINANT";
+    if (safeSt >= 2 && dozenMax >= 6) return "EXPANDING";
+    if (safeSt >= 2 && safeNums >= 1 && dozenMax >= 5) return "EARLY";
+    return "NONE";
+  }
+
+
 
   const STRATEGY_DETAILS = {
     "6 Diamonds + 0/00 (Primary)":
@@ -1017,7 +1228,86 @@ Tracker UI
   function closeExplain() {
     $("expModal").style.display = "none";
   }
-  on("expClose", "click", closeExplain);
+
+  // Table state explain (allowed / blocked strategies)
+// Stopgap: show ALL allowance buckets in the modal, and show the current-resolved bucket at the top.
+// Also: normalize tableState text defensively (Safari/iOS sometimes gives non-breaking spaces, etc.).
+function normalizeTableStateLabel(s) {
+  if (s == null) return "";
+  return String(s)
+    .replace(/\u00A0/g, " ")     // nbsp
+    .replace(/\u2007/g, " ")     // figure space
+    .replace(/\u202F/g, " ")     // narrow nbsp
+    .replace(/[–—]/g, "-")       // dash variants
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+}
+
+function allowanceStateFromTableState(tableState) {
+  const t = normalizeTableStateLabel(tableState);
+
+  // IMPORTANT: This function maps "Table state" → allowance bucket.
+  // If your UI adds new table states, add them here.
+  if (t === "STALL" || t === "COLD/DROUGHT" || t === "COLD" || t === "DROUGHT") return "STALL";
+  if (t === "STRUCTURED" || t === "EVEN") return "STRUCTURED";
+  if (t === "CHOPPY" || t === "REPEAT-HEAVY" || t === "REPEAT HEAVY") return "CHOPPY";
+
+  // Junko states: allow the UI to still compute an allowance bucket for reference.
+  // (Junko surfacing is controlled elsewhere; this just prevents "always CHOPPY" confusion.)
+  if (t.startsWith("JUNKO")) return "STRUCTURED";
+
+  // Fallback: CHOPPY is the safest bucket when unclear.
+  return "CHOPPY";
+}
+
+function openTableStateExplain() {
+  const stateEl = document.getElementById("tableStateLabel");
+  const winEl = document.getElementById("windowLabel");
+  const sessEl = document.getElementById("sessionIdLabel");
+
+  const tableStateRaw = stateEl ? stateEl.textContent : "";
+  const tableStateNorm = normalizeTableStateLabel(tableStateRaw);
+  const bucket = allowanceStateFromTableState(tableStateRaw);
+
+  const buckets = [
+    { key: "STALL", title: "STALL (cold/drought)", hint: "Momentum / split-hit / flat coverage only" },
+    { key: "STRUCTURED", title: "STRUCTURED (even/structured)", hint: "Systems + filtered splits allowed" },
+    { key: "CHOPPY", title: "CHOPPY (repeat-heavy/chop)", hint: "Comp grind / flat-only bias" }
+  ];
+
+  const lines = [];
+  lines.push(`Table state: ${tableStateRaw || "—"} • Window: ${winEl ? winEl.textContent : "—"} • Session: ${sessEl ? sessEl.textContent : "—"}`);
+  lines.push("");
+  lines.push(`Resolved allowance bucket: ${bucket}`);
+  if (tableStateNorm && tableStateNorm !== normalizeTableStateLabel(bucket)) {
+    lines.push(`(debug) normalized state: ${tableStateNorm}`);
+  }
+  lines.push("");
+  lines.push("Scroll for all buckets:");
+  lines.push("");
+
+  for (const b of buckets) {
+    const rule = allowedStrategiesByState(b.key, "CAN_SIT_OUT");
+    const isCurrent = (b.key === bucket);
+    lines.push(`${isCurrent ? "✅ " : ""}${b.title}`);
+    lines.push(`Note: ${rule.note}${b.hint ? " • " + b.hint : ""}`);
+    lines.push("");
+    lines.push("Allowed (best → worst):");
+    for (const s of rule.allow) lines.push(`• ${s}`);
+    lines.push("");
+    lines.push("Blocked / stop using:");
+    for (const s of rule.block) lines.push(`• ${s}`);
+    lines.push("");
+    lines.push("— — —");
+    lines.push("");
+  }
+
+  openExplain("Table state playbook (all buckets)", lines.join("\n"));
+}
+
+window.openTableStateExplain = openTableStateExplain;
+on("expClose", "click", closeExplain);
   on("expBackdrop", "click", closeExplain);
 
   // Junko quadrants: modal explain (analytics only)
@@ -1061,7 +1351,7 @@ Tracker UI
   function save() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        spins, windowN, sessionId, casino: $("casinoInput").value || ""
+        spins, windowN, tableMode, perf, stateTracker, casino: $("casinoInput").value || ""
       }));
     } catch(_) {}
   }
@@ -1075,11 +1365,13 @@ Tracker UI
         spins = obj.spins.map(x => {
           if(!x) return null;
           if(typeof x === "string" || typeof x === "number") return {n:numToKey(x), t:Date.now(), s:1};
-          return {n:numToKey(x.n), t:Number(x.t)||Date.now(), s:Number(x.s)||1};
+          return {n:numToKey(x.n), t:Number(x.t)||Date.now(), s:1};
         }).filter(x => x && x.n!==null);
       }
       if([10,15,20].includes(obj.windowN)) windowN = obj.windowN;
-      if(Number.isFinite(obj.sessionId)) sessionId = Number(obj.sessionId);
+      if(obj.tableMode==="MUST_BET" || obj.tableMode==="CAN_SIT_OUT") tableMode = obj.tableMode;
+      if(obj.perf && typeof obj.perf==="object") perf = Object.assign({actions:[],stats:{},activePlay:null}, obj.perf);
+      if(obj.stateTracker && typeof obj.stateTracker==="object") stateTracker = Object.assign({current:"—",sinceSpinCount:0}, obj.stateTracker);
       if(typeof obj.casino === "string") $("casinoInput").value = obj.casino;
     } catch(_) {}
   }
@@ -1094,8 +1386,8 @@ Tracker UI
     const kbd = $("kbd");
     if (!kbd) return;
 
-    // Debug counter (visible on-page)
-    if (!window.__kpCount) window.__kpCount = 0;
+    // Debug counter is always derived from stored spins length
+    window.__kpCount = Array.isArray(spins) ? spins.length : 0;
 
     const keys = ["00",0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36];
     kbd.innerHTML = "";
@@ -1104,14 +1396,13 @@ Tracker UI
       // Prevent accidental double-fire on iOS (click after touch)
       const now = Date.now();
       if (!window.__kpLastTap) window.__kpLastTap = 0;
-      if (now - window.__kpLastTap < 300) return;
+      if (now - window.__kpLastTap < 80) return;
       window.__kpLastTap = now;
 
-      window.__kpCount += 1;
-      const dbg = $("kpDebug");
-      if (dbg) dbg.textContent = "Keypad taps: " + window.__kpCount;
-
       addSpin(k);
+      const dbg = $("kpDebug");
+      window.__kpCount = Array.isArray(spins) ? spins.length : 0;
+      if (dbg) dbg.textContent = "Spin count: " + window.__kpCount;
     };
 
     keys.forEach(k => {
@@ -1146,6 +1437,12 @@ Tracker UI
         fire(raw === "00" ? "00" : Number(raw));
       }, {capture:true});
     }
+  }
+
+  function ensureKeypad() {
+    const kbd = $("kbd");
+    if (!kbd) return;
+    if (!kbd.children || kbd.children.length === 0) buildKeypad();
   }
 
 
@@ -1211,7 +1508,7 @@ Tracker UI
       gdc = (Number.isFinite(gdc) ? gdc : 0) + 1;
     }
 
-    spins.unshift({ n:k, t:Date.now(), s:sessionId });
+    spins.unshift({ n:k, t:Date.now(), s:1 });
     if (spins.length > 5000) spins = spins.slice(0, 5000);
     save();
     render();
@@ -1220,6 +1517,7 @@ Tracker UI
   function undo() {
     if(spins.length===0) return;
     spins.shift();
+    window.__kpCount = spins.length;
     save();
     render();
   }
@@ -1227,15 +1525,19 @@ Tracker UI
   function clearAll() {
     if(!confirm("Clear all spins?")) return;
     spins = [];
-    sessionId = 1;
+    window.__kpCount = 0;
     save();
     render();
   }
 
   function newSession() {
-    sessionId += 1;
-      gdc = 0;
-      gsah = { ...gsah, state:"OFF", cooldown:false, u:1, lossCount:0, betSpins:0, pnlU:0, pending:false, pendingU:1, offReason:"" };
+    // No-session mode: this just cues a manual reset label in the Casino field.
+    window.__kpCount = spins.length;
+    const c = $("casinoInput");
+    if (c) {
+      const v = (c.value || "").trim();
+      c.value = v ? (v.endsWith(" *") ? v : v + " *") : "*";
+    }
     save();
     render();
   }
@@ -1259,7 +1561,7 @@ Tracker UI
     const lines = ["number,casino,date,time,session_id"];
     spins.slice().reverse().forEach(x => {
       const n = (x.n==="00") ? "00" : String(x.n);
-      lines.push(`${n},"${casino}",${csvDate(x.t)},${csvTime(x.t)},${x.s}`);
+      lines.push(`${n},"${casino}",${csvDate(x.t)},${csvTime(x.t)},1`);
     });
     return lines.join("\n");
   }
@@ -1269,10 +1571,8 @@ Tracker UI
       await navigator.clipboard.writeText(csv);
       alert("CSV copied.");
     } catch(_) {
-      $("lastList").value = csv;
-      $("lastList").focus();
-      $("lastList").select();
-      alert("Clipboard blocked. CSV placed in the box; copy manually.");
+      $("lastList").textContent = csv;
+      alert("Clipboard blocked. CSV placed in the history box; copy manually.");
     }
   }
   function downloadCsv() {
@@ -1280,7 +1580,7 @@ Tracker UI
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "roulette_spins_ALL.csv";
+    a.download = "roulette_spins_R2_ALL.csv";
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -1355,8 +1655,7 @@ Tracker UI
       const casino = String(cols[1]||"").trim();
       if(casino && casinoFromFile===null) casinoFromFile = casino;
       const t = parseTimestamp(cols[2], cols[3]);
-      let s = Number(String(cols[4]||"").trim());
-      if(!Number.isFinite(s)) s = 1;
+      let s = 1;
 
       const key = `${String(n)}|${String(t)}|${String(s)}`;
       if(seen.has(key)) { skipped++; continue; }
@@ -2006,6 +2305,84 @@ function scoreTrinity(vals){
   return scoreTrinityV2(vals);
 }
 
+
+// ===============================
+// CHECKMATE 8 – STRATEGY ALLOWANCE
+// ===============================
+function allowedStrategiesByState(state, tableMode = "CAN_SIT_OUT") {
+
+  if (state === "STALL") {
+    return {
+      allow: [
+        "WB-RTB",
+        "CHECKMATE 8",
+        "333 Momentum Play",
+        "Twin Spines",
+        "Sly Rabbit",
+        "Dirty Bird (Comp)",
+        "24 Karat (flat)",
+        "Iron Turtle (flat)",
+        "6 Diamonds (flat)",
+        "Stella (flat)"
+      ],
+      block: [
+        "12 Soldiers",
+        "Easy Street",
+        "Moon Dance",
+        "8 Is Enough",
+        "Driest Corners"
+      ],
+      note:
+        tableMode === "MUST_BET"
+          ? "STALL: momentum / split-hit / flat coverage only"
+          : "STALL: WB-RTB or CHECKMATE 8"
+    };
+  }
+
+  if (state === "STRUCTURED") {
+    return {
+      allow: [
+        "12 Soldiers",
+        "Easy Street",
+        "Moon Dance",
+        "8 Is Enough",
+        "Dirty Bird (Cash)",
+        "CHECKMATE 8",
+        "Greenland",
+        "Stella"
+      ],
+      block: [
+        "333 Momentum Play",
+        "Twin Spines",
+        "Sly Rabbit"
+      ],
+      note: "STRUCTURED: Junko contraction + filtered splits allowed"
+    };
+  }
+
+  // CHOPPY
+  return {
+    allow: [
+      "WB-RTB",
+      "24 Karat (flat)",
+      "Iron Turtle (flat)",
+      "6 Diamonds (flat)",
+      "Stella (flat)"
+    ],
+    block: [
+      "CHECKMATE 8",
+      "12 Soldiers",
+      "Easy Street",
+      "Moon Dance",
+      "8 Is Enough"
+    ],
+    note:
+      tableMode === "MUST_BET"
+        ? "CHOPPY: comp grind only"
+        : "CHOPPY: WB-RTB"
+  };
+}
+
 function scoreStrategies(vals) {
   const plays = [];
   const add = (name, score, why, extra={}) => plays.push({name, score, why, ...extra});
@@ -2077,6 +2454,48 @@ function scoreStrategies(vals) {
 
 
 
+
+  // --- Junko eligibility gate (hard filter) ---
+  // Only surface Junko strategies when exactly one quadrant is HOT (>=6/15)
+  // or DRY (>=10 spins since hit within last-15 window). Otherwise suppress Junko entirely.
+  const junkoGate = (() => {
+    const w15 = vals.slice(0,15);
+    if(w15.length < 15) return {eligible:false, mode:"OFF", quadrant:null, detail:"Need 15 spins."};
+    const c15 = counts(w15);
+    const ages = junkoAges(w15);
+    const ageVal = (a) => (a === 999 ? w15.length : a); // 999 means not hit in window
+    const q = [
+      {id:"GN", hits:c15.gn, age:ageVal(ages.gn)},
+      {id:"HO", hits:c15.ho, age:ageVal(ages.ho)},
+      {id:"LO", hits:c15.lo, age:ageVal(ages.lo)},
+      {id:"M",  hits:c15.m,  age:ageVal(ages.m)},
+    ];
+    q.forEach(x => {
+      x.isHot = (x.hits >= 6);
+      x.isDry = (x.age >= 10);
+      x.qual  = x.isHot || x.isDry;
+    });
+    const qual = q.filter(x => x.qual);
+    if(qual.length !== 1) return {eligible:false, mode:"OFF", quadrant:null, detail:`qual=${qual.length}`};
+    const one = qual[0];
+    const mode = one.isHot ? "HOT" : "DRY";
+    return {eligible:true, mode, quadrant: one.id, detail:`${one.id} hits=${one.hits}/15 age=${one.age}`};
+  })();
+
+  // Helper: identify Junko-derived strategies to suppress when gate is OFF
+  const isJunkoStrategy = (name) => {
+    const nm = String(name||"");
+    return /Junko/i.test(nm) || /Moon Dance/i.test(nm);
+  };
+
+
+  // Apply Junko suppression if gate is OFF (must happen before sorting / primary selection).
+  if(!junkoGate.eligible){
+    for(let i = plays.length - 1; i >= 0; i--){
+      if(isJunkoStrategy(plays[i]?.name)) plays.splice(i,1);
+    }
+  }
+
   // Annotate play mode for display (COMP vs CASH)
   plays.forEach(p => {
     if (p && !p.mode) {
@@ -2121,16 +2540,122 @@ function scoreStrategies(vals) {
   const rn = repeatNumberInfo(vals, 5);
   const rs3 = repeatStreetInfo(vals, 3);
   let state = "Flat / Choppy";
-  if(rn.flag || rs3.flag) state = "Repeat-Heavy";
-  else {
-    const w15 = vals.slice(0,15);
-    const c15 = counts(w15);
-    const colMax15 = Math.max(c15.c1,c15.c2,c15.c3);
-    const dozMax15 = Math.max(c15.d1,c15.d2,c15.d3);
-    if(colMax15 >= 7 || dozMax15 >= 7) state = "Concentrated";
+
+  // Table-state classifier (last 15):
+  // - Repeat-Heavy: multiple repeats recently (numbers or streets)
+  // - Cold/Drought: very few repeats + high uniqueness (lots of "new" outcomes)
+  // - Even: balanced distribution across columns/dozens (no strong bias)
+  // - Concentrated: one column/dozen dominates (7+ hits in last 15)
+  const w15 = vals.slice(0,15);
+  const c15 = counts(w15);
+  const colMax15 = Math.max(c15.c1,c15.c2,c15.c3);
+  const colMin15 = Math.min(c15.c1,c15.c2,c15.c3);
+  const dozMax15 = Math.max(c15.d1,c15.d2,c15.d3);
+  const dozMin15 = Math.min(c15.d1,c15.d2,c15.d3);
+  const unique15 = new Set(w15).size;
+
+  const isRepeatHeavy = (rn.flag || rs3.flag);
+  const isConcentrated = (colMax15 >= 7) || (dozMax15 >= 7);
+  const isDrought = (!isRepeatHeavy) && (rn.count === 0) && (rs3.count === 0) && (unique15 >= 14);
+  const isEven = (!isRepeatHeavy) && (!isConcentrated) && ((colMax15 - colMin15) <= 2) && ((dozMax15 - dozMin15) <= 2);
+
+  if(isRepeatHeavy) state = "Repeat-Heavy";
+  else if(isDrought) state = "Cold/Drought";
+  else if(isEven) state = "Even";
+  else if(isConcentrated) state = "Concentrated";
+
+
+  // If Junko gate is ON, override the table state label (for display + downstream routing).
+  if(junkoGate.eligible){
+    state = (junkoGate.mode === "HOT") ? "JUNKO HOT" : "JUNKO DRY";
   }
 
-  return {state, plays: top3, primary};
+  // Strategy routing based on table trend (non-quadrant systems unless Junko gate is ON)
+  const pickByName = (nm) => plays.find(p => p.name === nm) || null;
+
+  if(state === "JUNKO HOT"){
+    // Recommend Junko Hot with flat bet + short leash (10–15 spins).
+    const j = pickByName("Junko Hot (Quadrant Momentum)");
+    if(j){
+      primary = {...j, mode:"CASH", why: (j.why||"") + " Flat bet only. Short leash (10–15 spins)."};
+    }
+  } else if(state === "JUNKO DRY"){
+    // DRY signal: still Junko-eligible; keep it conservative.
+    const mdPlay = pickByName("Moon Dance 2S/Dozen (Junko Base)");
+    if(mdPlay){
+      primary = {...mdPlay, mode:"CASH", why: (mdPlay.why||"") + " Flat bet only. Short leash (10–15 spins)."};
+    }
+  } else if(state === "Repeat-Heavy"){
+    if(clusterStage === "EARLY"){
+      primary = {name:"10-2-Win (Reactivation)", score:92, why:"Repeat-heavy early cluster after dry reactivation.", mode:"CASH"}
+// BOSS_MILD_TRIGGER
+try{
+  const gap = Math.max(cts.d1,cts.d2,cts.d3) - Math.min(cts.d1,cts.d2,cts.d3);
+  if(!repHeavy && gap>=6 && gap<=7){
+    const bossVar = chooseBossVariantSafe(cts);
+    if(bossVar==="LOW") primary = {name:"The Boss — Low", score:88, mode:"CASH", why:"Gap 6–7 → Boss Low"};
+    else if(bossVar==="MIDDLE") primary = {name:"The Boss — Middle", score:88, mode:"CASH", why:"Gap 6–7 → Boss Middle"};
+    else primary = {name:"The Boss — High", score:88, mode:"CASH", why:"Gap 6–7 → Boss High"};
+  }
+}catch(e){}
+;
+    } else if(clusterStage === "EXPANDING"){
+      primary = {name:"Plus 9 HOT", score:94, why:"Repeat-heavy cluster expanding across adjacent streets.", mode:"CASH"};
+    } else if(clusterStage === "DOMINANT"){
+      primary = {name:"333 Momentum", score:90, why:"Repeat-heavy with dominant dozen and repeated streets.", mode:"CASH"};
+    } else if((tableMode || "CAN_SIT_OUT") === "MUST_BET"){
+      primary = {name:"6 Diamonds + 0/00 (Primary)", score:70, why:"Weak repeat-heavy signal; controlled fallback in live table mode.", mode:"COMP"};
+    } else {
+      primary = {name:"Sit out / Flat bet", score:60, why:"Weak repeat-heavy signal.", mode:"COMP"};
+    }
+  } else if(state === "Even"){
+    const bossVar = chooseBossVariantSafe(cts);
+    if(bossVar==="LOW"){
+      primary = {name:"The Boss — Low", score:85, mode:"CASH", why:"Balanced → controlled Boss (low section driest)"};
+    } else if(bossVar==="MIDDLE"){
+      primary = {name:"The Boss — Middle", score:85, mode:"CASH", why:"Balanced → controlled Boss (middle driest)"};
+    } else {
+      primary = {name:"The Boss — High", score:85, mode:"CASH", why:"Balanced → controlled Boss (high driest)"};
+    }
+    // Dozens Overload v2 not present; default to Easy Street.
+    const e = pickByName("Easy Street — Cold Side (Option A′ Late Straights)");
+    if(e) primary = {...e, mode: primary.mode || "CASH"};
+  } else if(state === "Cold/Drought"){
+    const six = pickByName("6 Diamonds + 0/00 (Primary)");
+    if(six) primary = {...six, mode:"COMP"};
+  } else {
+    // Else: Sit out or flat bet.
+    if(primary && primary.score < 80){
+      if((tableMode || "CAN_SIT_OUT") === "MUST_BET"){
+        const fallback = pickByName("6 Diamonds + 0/00 (Primary)") || pickByName("WB-RTB");
+        if(fallback) primary = {...fallback, mode:"COMP", why:"Live table mode: cannot sit out, so default to controlled fallback."};
+      } else {
+        primary = {name:"Sit out / Flat bet", score: primary.score||1, why:"No clean trend signal; keep exposure minimal.", mode:"COMP"};
+      }
+    }
+  }
+
+
+  // Apply strategy allowance filter (CHECKMATE 8 rules)
+  window.__tableMode = tableMode || "CAN_SIT_OUT";
+  const allowanceState = allowanceStateFromTableState(state);
+  const allowance = allowedStrategiesByState(allowanceState, window.__tableMode);
+  window.__lastAllowance = allowance;
+  window.__lastAllowanceState = allowanceState;
+  window.__lastTableState = state;
+  const allowedNames = new Set(allowance.allow || []);
+  const filtered = plays.filter(p => {
+    for (const nm of allowedNames) {
+      if (p.name === nm || p.name.startsWith(nm)) return true;
+    }
+    return false;
+  });
+
+  const finalPlays = filtered.length ? filtered.slice(0,3) : top3;
+  const finalPrimary = finalPlays[0] || primary;
+
+  return {state, plays: finalPlays, primary: finalPrimary};
+
 }
 
 // --- Extra diagnostics (repeats, Hydra cold4, Dirty Bird stats) ---
@@ -2191,6 +2716,111 @@ function hydraCold4SinceGreen(spinsChrono){
   arr.sort((a,b)=>(a.c-b.c)||(a.n-b.n));
   const cold4 = arr.slice(0,4);
   return {len: seg.length, cold4};
+}
+
+// Vertical-4 groups per dozen (0/00 excluded)
+const VERTICAL_GROUPS = {
+  D1: { C1:[1,4,7,10], C2:[2,5,8,11], C3:[3,6,9,12] },
+  D2: { C1:[13,16,19,22], C2:[14,17,20,23], C3:[15,18,21,24] },
+  D3: { C1:[25,28,31,34], C2:[26,29,32,35], C3:[27,30,33,36] }
+};
+
+function verticalKeyForNumber(n){
+  if (typeof n !== "number" || n < 1 || n > 36) return null;
+  if (n <= 12){
+    if ([1,4,7,10].includes(n)) return {d:"D1", c:"C1"};
+    if ([2,5,8,11].includes(n)) return {d:"D1", c:"C2"};
+    return {d:"D1", c:"C3"};
+  } else if (n <= 24){
+    if ([13,16,19,22].includes(n)) return {d:"D2", c:"C1"};
+    if ([14,17,20,23].includes(n)) return {d:"D2", c:"C2"};
+    return {d:"D2", c:"C3"};
+  } else {
+    if ([25,28,31,34].includes(n)) return {d:"D3", c:"C1"};
+    if ([26,29,32,35].includes(n)) return {d:"D3", c:"C2"};
+    return {d:"D3", c:"C3"};
+  }
+}
+
+function verticalMetrics(spinsChrono){
+  const total = spinsChrono.length;
+
+  // last 15 spins (chronological) for last15Hits
+  const last15 = spinsChrono.slice(Math.max(0, total-15));
+
+  const perDozen = { D1:{}, D2:{}, D3:{} };
+
+  // ages + last15Hits
+  ["D1","D2","D3"].forEach(d=>{
+    ["C1","C2","C3"].forEach(c=>{
+      const nums = VERTICAL_GROUPS[d][c];
+      // age: spins since last hit session-wide (greens count as spins)
+      let age = total; // never hit
+      for (let i=total-1;i>=0;i--){
+        const v = spinsChrono[i];
+        if (typeof v === "number" && nums.includes(v)){
+          age = (total-1) - i;
+          break;
+        }
+      }
+      // hits in last 15 spins (greens ignored implicitly)
+      let hits15 = 0;
+      for (const v of last15){
+        if (typeof v === "number" && nums.includes(v)) hits15++;
+      }
+      perDozen[d][c] = {age, hits15};
+    });
+  });
+
+  // driest per dozen (max age)
+  const driest = {};
+  ["D1","D2","D3"].forEach(d=>{
+    let best = {c:"C1", age:-1, hits15:0};
+    ["C1","C2","C3"].forEach(c=>{
+      const o = perDozen[d][c];
+      if (o.age > best.age) best = {c, age:o.age, hits15:o.hits15};
+    });
+    driest[d]=best;
+  });
+
+  // top driest overall (all 9 groups)
+  const all = [];
+  ["D1","D2","D3"].forEach(d=>{
+    ["C1","C2","C3"].forEach(c=>{
+      all.push({d,c, age:perDozen[d][c].age});
+    });
+  });
+  all.sort((a,b)=>b.age-a.age || a.d.localeCompare(b.d) || a.c.localeCompare(b.c));
+  const top5 = all.slice(0,5);
+
+  // repeat streaks per dozen (within that dozen's hit stream; ignore other dozens and green)
+  const streak = {};
+  ["D1","D2","D3"].forEach(d=>{
+    const stream = [];
+    for (const v of spinsChrono){
+      if (typeof v !== "number" || v<1 || v>36) continue;
+      if (d==="D1" && v<=12) stream.push(verticalKeyForNumber(v).c);
+      if (d==="D2" && v>=13 && v<=24) stream.push(verticalKeyForNumber(v).c);
+      if (d==="D3" && v>=25) stream.push(verticalKeyForNumber(v).c);
+    }
+    // current streak
+    let curCol = stream.length ? stream[stream.length-1] : null;
+    let cur = 0;
+    for (let i=stream.length-1;i>=0;i--){
+      if (stream[i]===curCol) cur++;
+      else break;
+    }
+    // max streak
+    let max = 0, run=0, prev=null;
+    for (const c of stream){
+      if (c===prev) run++;
+      else { run=1; prev=c; }
+      if (run>max) max=run;
+    }
+    streak[d]={curCol, cur, max};
+  });
+
+  return {perDozen, driest, top5, streak};
 }
 
 // Dirty Bird selection (simplified stats-only: cold-dozen mode, 2 cold numbers excluded)
@@ -2322,7 +2952,7 @@ function soldiersStatsLast15(recentNewestFirst){
   try{
     const last15Oldest = recentNewestFirst.slice(0,15).slice().reverse();
     const sel = selectSoldiersUC(last15Oldest);
-    return {ok:true, sel};
+    return {ok:true, ...sel, sel};
   }catch(e){
     return {ok:false, err:String(e && e.message ? e.message : e)};
   }
@@ -2454,7 +3084,7 @@ function cornerHit(nums, spin){
   }
 
   // Freeze state (tap Activate to freeze; auto-reset after 2 hits; tap again to manually reset)
-  const CORNER_FREEZE_KEY = "cornerFreezeD5C_v1";
+  const CORNER_FREEZE_KEY = "cornerFreezeD5C_R2_v1_62";
   function loadCornerFreeze(){
     try {
       const raw = localStorage.getItem(CORNER_FREEZE_KEY);
@@ -2558,6 +3188,134 @@ function cornerHit(nums, spin){
     };
   }
 
+
+function ensureStatRow(name){
+  if(!perf.stats[name]) perf.stats[name] = {plays:0,sits:0,wins:0,losses:0,pushes:0,pnl:0};
+  return perf.stats[name];
+}
+function currentRecommendedStrategyName(){
+  const rec = $("recommend") ? $("recommend").textContent : "";
+  if(!rec) return "Unknown";
+  return rec.replace(/^CASH\s+—\s+/,'').replace(/^COMP\s+—\s+/,'').trim();
+}
+function logAction(kind){
+  const state = $("state") ? $("state").textContent : "—";
+  const strategy = currentRecommendedStrategyName();
+  const row = ensureStatRow(strategy);
+  const action = {kind, strategy, state, spinCount: spins.length, t: Date.now()};
+  perf.actions.unshift(action);
+  if(kind==="PLAY"){
+    row.plays += 1;
+    perf.activePlay = action;
+  } else if(kind==="SIT"){
+    row.sits += 1;
+  }
+  save();
+  render();
+}
+function settleActivePlay(result){
+  if(!perf.activePlay) return;
+  const strategy = perf.activePlay.strategy || "Unknown";
+  const row = ensureStatRow(strategy);
+  const unitsRaw = ($("settleUnitsInput") && $("settleUnitsInput").value) ? $("settleUnitsInput").value : "0";
+  let units = Number(unitsRaw);
+  if(!Number.isFinite(units)) units = 0;
+  if(result==="WIN"){
+    row.wins += 1;
+    row.pnl += Math.abs(units);
+  } else if(result==="LOSS"){
+    row.losses += 1;
+    row.pnl -= Math.abs(units);
+  } else {
+    row.pushes += 1;
+  }
+  perf.actions.unshift({kind:"SETTLE_"+result, strategy, state: perf.activePlay.state || "—", spinCount: spins.length, units, t: Date.now()});
+  perf.activePlay = null;
+  save();
+  render();
+}
+function clearPerformance(){
+  if(!confirm("Clear play / sit-out performance?")) return;
+  perf = { actions: [], stats: {}, activePlay: null };
+  save();
+  render();
+}
+
+function isStrongClusterSignal(vals){
+  try{
+    const arr = (vals || []).filter(v => typeof v === "number" && v >= 1 && v <= 36);
+    if (arr.length < 5) return false;
+    const streetOf = (n) => Math.floor((n - 1) / 3) + 1;
+    const dozenOf = (n) => (n <= 12 ? 1 : (n <= 24 ? 2 : 3));
+
+    const last5 = arr.slice(0, 5);
+    const st = {};
+    const dz = {1:0,2:0,3:0};
+    const num = {};
+
+    for (const n of last5){
+      const s = streetOf(n);
+      st[s] = (st[s] || 0) + 1;
+      dz[dozenOf(n)] += 1;
+      num[n] = (num[n] || 0) + 1;
+    }
+
+    const maxStreet = Math.max(...Object.values(st));
+    const repeatNums = Object.values(num).filter(v => v >= 2).length;
+    const maxDozen = Math.max(dz[1], dz[2], dz[3]);
+
+    return (maxStreet >= 3) || (repeatNums >= 2 && maxDozen >= 3);
+  } catch(e){
+    return false;
+  }
+}
+
+function renderPerformance(){
+  const body = $("perfBody");
+  if(!body) return;
+  const names = Object.keys(perf.stats || {}).sort((a,b)=>{
+    const pa = perf.stats[a] || {}, pb = perf.stats[b] || {};
+    return (pb.plays||0) - (pa.plays||0) || a.localeCompare(b);
+  });
+  if(!names.length){
+    body.innerHTML = '<tr><td colspan="7" class="small">No play log yet.</td></tr>';
+  } else {
+    body.innerHTML = names.map(name=>{
+      const s = perf.stats[name] || {};
+      return `<tr>
+        <td>${name}</td>
+        <td class="num">${s.plays||0}</td>
+        <td class="num">${s.sits||0}</td>
+        <td class="num">${s.wins||0}</td>
+        <td class="num">${s.losses||0}</td>
+        <td class="num">${s.pushes||0}</td>
+        <td class="num">${s.pnl||0}u</td>
+      </tr>`;
+    }).join("");
+  }
+  const playCount = perf.actions.filter(x=>x.kind==="PLAY").length;
+  const sitCount = perf.actions.filter(x=>x.kind==="SIT").length;
+  const winCount = perf.actions.filter(x=>x.kind==="SETTLE_WIN").length;
+  const lossCount = perf.actions.filter(x=>x.kind==="SETTLE_LOSS").length;
+  const sessPnl = Object.values(perf.stats || {}).reduce((a,s)=>a + Number(s.pnl||0), 0);
+  if($("sessionActionTotals")) $("sessionActionTotals").textContent = `Play ${playCount} • Sit ${sitCount}`;
+  if($("sessionActionMeta")) $("sessionActionMeta").textContent = `Wins ${winCount} • Losses ${lossCount} • PnL ${sessPnl}u`;
+  if($("currentAction")){
+    if(perf.activePlay){
+      $("currentAction").textContent = `PLAY • ${perf.activePlay.strategy}`;
+      $("currentActionMeta").textContent = `State ${perf.activePlay.state} • Spin ${perf.activePlay.spinCount}`;
+    } else {
+      const last = (perf.actions && perf.actions[0]) ? perf.actions[0] : null;
+      $("currentAction").textContent = last ? `${last.kind.replace("SETTLE_","")} • ${last.strategy}` : "None logged";
+      $("currentActionMeta").textContent = last ? `Spin ${last.spinCount}` : "—";
+    }
+  }
+}
+function applyTableModeUI(){
+  const canBtn = $("modeCanSitBtn"), mustBtn = $("modeMustBetBtn");
+  if(canBtn) canBtn.classList.toggle("active", tableMode==="CAN_SIT_OUT");
+  if(mustBtn) mustBtn.classList.toggle("active", tableMode==="MUST_BET");
+}
 function activateCornerFreezeToggle(spins){
     const st = ensureCornerFreeze();
     if (st.active) {
@@ -2572,17 +3330,28 @@ function render() {
   try {
     $("winLabel").textContent = "Last " + windowN;
     $("spinCount").textContent = String(spins.length);
-    $("sessionCount").textContent = String(spins.filter(x => x.s===sessionId).length);
+    $("sessionCount").textContent = String(spins.length);
 
     const recent = windowValues();
     $("greenCount").textContent = String(recent.filter(isGreen).length);
+    try {
+      window.__kpCount = Array.isArray(spins) ? spins.length : 0;
+      const dbg = $("kpDebug");
+      if (dbg) dbg.textContent = "Spin count: " + window.__kpCount;
+    } catch(_) {}
+
+    // Session-wide arrays (newest-first) for exact ages (so we don't collapse >window to "15+")
+    const sessSpinObjs = spins; // newest-first objects {n,t,s}
+    const sessNums = sessSpinObjs.map(x => x.n);
+    const sessTotal = sessNums.length;
 
     const cts = counts(recent);
-    const cAges = colAges(recent);
-    const dAges = dozenAges(recent);
-    const fmtAgeCD = (a) => (a === 999 ? (recent.length + "+") : String(a));
-    $("cols").textContent = `${cts.c1} (${fmtAgeCD(cAges.c1)}) / ${cts.c2} (${fmtAgeCD(cAges.c2)}) / ${cts.c3} (${fmtAgeCD(cAges.c3)})`;
-    $("doz").textContent  = `${cts.d1} (${fmtAgeCD(dAges.d1)}) / ${cts.d2} (${fmtAgeCD(dAges.d2)}) / ${cts.d3} (${fmtAgeCD(dAges.d3)})`;
+    // Ages are session-wide (exact). Counts remain window-based.
+    const cAgesSess = colAges(sessNums);
+    const dAgesSess = dozenAges(sessNums);
+    const fmtAgeCD = (a) => (a === 999 ? String(sessTotal) : String(a));
+    $("cols").textContent = `${cts.c1} (${fmtAgeCD(cAgesSess.c1)}) / ${cts.c2} (${fmtAgeCD(cAgesSess.c2)}) / ${cts.c3} (${fmtAgeCD(cAgesSess.c3)})`;
+    $("doz").textContent  = `${cts.d1} (${fmtAgeCD(dAgesSess.d1)}) / ${cts.d2} (${fmtAgeCD(dAgesSess.d2)}) / ${cts.d3} (${fmtAgeCD(dAgesSess.d3)})`;
 
     const dsc = dsCounts(recent);
     $("ds").textContent = `D1 ${dsc.d1[0]}/${dsc.d1[1]}/${dsc.d1[2]} | D2 ${dsc.d2[0]}/${dsc.d2[1]}/${dsc.d2[2]} | D3 ${dsc.d3[0]}/${dsc.d3[1]}/${dsc.d3[2]}`;
@@ -2594,20 +3363,46 @@ function render() {
     const fmtAge = (a) => (a === 999 ? (recent.length + "+") : String(a));
     $("junko").textContent = "GN " + cts.gn + " (" + fmtAge(jAges.gn) + ") | HO " + cts.ho + " (" + fmtAge(jAges.ho) + ") | LO " + cts.lo + " (" + fmtAge(jAges.lo) + ") | M " + cts.m + " (" + fmtAge(jAges.m) + ")";
     $("junkoBets").textContent = `Bet numbers — GN ${JUNKO_BET_NUMS.GN} | HO ${JUNKO_BET_NUMS.HO} | LO ${JUNKO_BET_NUMS.LO} | M ${JUNKO_BET_NUMS.M}`;
+    $("greenDrought").textContent = String(Number.isFinite(gdc) ? gdc : 0);
 
-    $("lastList").value = spins.slice(0,20).map(x => (x.n==="00"?"00":String(x.n))).join(", ");
+    const dozSig = rank3Signals(cts, dAgesSess, 'd');
+    const colSig = rank3Signals(cts, cAgesSess, 'c');
+    $("dozenSignal").textContent = `DRY ${dozSig.driest.label} (${dozSig.driest.hits}, ${labelAge(dozSig.driest.age, sessTotal)}) • HOT ${dozSig.hottest.label} (${dozSig.hottest.hits}, ${labelAge(dozSig.hottest.age, sessTotal)})`;
+    $("dozenSignal2").textContent = `${dozSig.state} imbalance • gap ${dozSig.gap} • Tupelo ${dozSig.state==='BALANCED' ? 'WAIT' : (dozSig.driest.label==='D1' ? 'LOW' : (dozSig.driest.label==='D2' ? 'MIDDLE' : 'HIGH'))}`;
 
-    const scored = scoreStrategies(recent);
+    $("columnSignal").textContent = `DRY ${colSig.driest.label} (${colSig.driest.hits}, ${labelAge(colSig.driest.age, sessTotal)}) • HOT ${colSig.hottest.label} (${colSig.hottest.hits}, ${labelAge(colSig.hottest.age, sessTotal)})`;
+    $("columnSignal2").textContent = `${colSig.state} imbalance • gap ${colSig.gap} • Double Cross ${colSig.gap >= 3 && dozSig.gap >= 3 ? 'READY' : 'WAIT'}`;
+
+    const fullHistoryText = sessSpinObjs.length
+      ? sessSpinObjs.map(x => (x.n==="00"?"00":String(x.n))).join(", ")
+      : "No spins yet.";
+    $("lastList").textContent = fullHistoryText;
+    if ($("historyMeta")) $("historyMeta").textContent = `Stored spins: ${sessSpinObjs.length}`;
+    if ($("historyWindowMeta")) $("historyWindowMeta").textContent = `Last ${windowN} used for stats: ${recent.length ? recent.map(x => x==="00" ? "00" : String(x)).join(", ") : "—"}`;
+
+    const scored = safeScoreStrategies(recent);
+    const sinceGreen = Number.isFinite(gdc) ? gdc : 0;
+    const repNums = findRepeatNumbers(recent, 5);
+    const repSt = findRepeatStreets(recent, 5);
+
+    const repHeavy = repSt.length >= 3 || repNums.length >= 2 || scored.state === 'Repeat-Heavy';
+    const clusterStage = repHeavy ? classifyRepeatHeavyStage(repNums, repSt, cts) : "NONE";
+    const ten2 = ready102Win(jAges);
+    const gateBits = [
+      `10-2-Win ${ten2.ready ? 'READY ' + ten2.best.id + ' (' + (ten2.best.age===999 ? sessTotal+'+' : ten2.best.age) + ')' : 'WAIT'}`,
+      `4x4 ${repHeavy ? 'SKIP' : 'SAFE'}`,
+      `Plus 9 ${repHeavy ? 'HOT MODE' : 'DRY MODE'}`,
+      `Green ${sinceGreen >= 15 ? 'ACTIVE' : 'WAIT'}`
+    ];
+    $("strategyGates").textContent = gateBits.join(' • ');
+    $("strategyGates2").textContent = `Repeat-heavy=${repHeavy ? 'yes' : 'no'} • Tupelo ${dozSig.gap >= 3 ? 'READY' : 'WAIT'} • Double Cross ${colSig.gap >= 3 && dozSig.gap >= 3 ? 'READY' : 'WAIT'}`;
+
     $("recommend").textContent = `${scored.primary.mode} — ${scored.primary.name}`;
     $("reason").textContent = scored.primary.why || "—";
 
 // ---- GREEN STATUS (view-only) ----
-const sinceGreen = Number.isFinite(gdc) ? gdc : 0;
 
 // Current session totals
-const sessSpinObjs = spins.filter(x => x.s === sessionId); // newest-first objects {n,t,s}
-const sessNums = sessSpinObjs.map(x => x.n);
-const sessTotal = sessNums.length;
 const sessGreens = sessNums.reduce((a, n) => a + (isGreen(n) ? 1 : 0), 0);
 
 
@@ -2631,21 +3426,74 @@ $("gsah").textContent = `sinceGreen=${sinceGreen} • greens=${sessGreens}/${ses
 $("gsah2").textContent = "";
 
     $("state").textContent = scored.state;
-    $("state2").textContent = `Window: last ${windowN} • Session: ${sessionId}`;
+if (stateTracker.current !== scored.state) {
+      stateTracker.current = scored.state;
+      stateTracker.sinceSpinCount = spins.length;
+      save();
+    }
+    const stateDuration = Math.max(0, spins.length - (Number(stateTracker.sinceSpinCount) || 0));
+    let stateSeverity = "Mild";
+    if (repHeavy || repSt.length >= 3 || repNums.length >= 2) stateSeverity = "Strong";
+    else if (dozSig.gap >= 3 || colSig.gap >= 3) stateSeverity = "Moderate";
+
+    const qHits = { GN: Number(cts.gn||0), HO: Number(cts.ho||0), LO: Number(cts.lo||0), M: Number(cts.m||0) };
+    const qVals = Object.values(qHits).filter(v => Number.isFinite(v));
+    let qGap = 0;
+    if (qVals.length) qGap = Math.max(...qVals) - Math.min(...qVals);
+    const qHot = Object.entries(qHits).sort((a,b)=>(Number(b[1]||0)-Number(a[1]||0)) || a[0].localeCompare(b[0]))[0] || ["—",0];
+    const qDry = Object.entries(qHits).sort((a,b)=>(Number(a[1]||0)-Number(b[1]||0)) || a[0].localeCompare(b[0]))[0] || ["—",0];
+    const qMode = qGap >= 5 ? "EXTREME" : (qGap >= 3 ? `DRY ${qDry[0]}` : "BALANCED");
+
+    if ($("state2")) $("state2").textContent = `Window: last ${windowN} • List: ${spins.length} • Dur ${stateDuration}`;
+    if ($("liveState")) $("liveState").textContent = scored.state;
+    if ($("liveStateMeta")) $("liveStateMeta").textContent = `Dur ${stateDuration} spins • ${stateSeverity} • ${tableMode==="MUST_BET" ? "Live table" : "Machine"}`;
+    if ($("live102")) $("live102").textContent = `GN ${cts.gn} | HO ${cts.ho} | LO ${cts.lo} | M ${cts.m}`;
+    if ($("live102Meta")) $("live102Meta").textContent = `Gap ${qGap} • ${qMode} • Hot ${qHot[0]}`;
+    if ($("liveRepeat")) $("liveRepeat").textContent = `Nums ${repNums.length} • Streets ${repSt.length} • ${repHeavy ? 'Repeat-Heavy' : 'Calm'} • ${clusterStage}`;
+    if ($("liveImbalance")) $("liveImbalance").textContent = `Dozen gap ${dozSig.gap} • Column gap ${colSig.gap} • Driest corner ${(($("corners5")&&$("corners5").textContent)||'—').replace(/^D5C — /,'')}`;
+
+
+  // Trend → strategy guardrails (user-defined)
+  // IF Repeat-Heavy → 12 Soldiers (alt: Iron Turtle v2)
+  // IF Even → Easy Street (alt: Dozens Overload v2)
+  // IF Cold/Drought → 6 Diamonds + 0/00 (Elimination)
+  // ELSE → Sit out / Flat bet
+  const trendOverride = (() => {
+    if(scored.state === "Repeat-Heavy") {
+      return { mode: "CASH", name: "12 Soldiers — Unique Columns, 12→8 Reset", why: "Trend: Repeat-Heavy → favor structured coverage. Alt: Iron Turtle v2." };
+    }
+    if(scored.state === "Even") {
+      return { mode: "CASH", name: "Easy Street — Cold Side (Option A′ Late Straights)", why: "Trend: Even → play even/structure. Alt: Dozens Overload v2." };
+    }
+    if(scored.state === "Cold/Drought") {
+      return { mode: "COMP", name: "6 Diamonds + 0/00 (Primary)", why: "Trend: Cold/Drought → Six Diamonds (Elimination)." };
+    }
+    return null;
+  })();
+
+  if(trendOverride) scored.primary = trendOverride;
+
     // Extra diagnostics
-    const repNums = findRepeatNumbers(recent, 5);
     $("repNums").textContent = repNums.length ? repNums.map(o=>`${o.n} (gap ${o.gap})`).join(", ") : "—";
     $("repNums2").textContent = repNums.length ? `count: ${repNums.length}` : "—";
 
-    const repSt = findRepeatStreets(recent, 3);
+    const repStBox = $("repStreetsBox");
+    if (repStBox) repStBox.classList.toggle("alert", repSt.length >= 3);
     $("repStreets").textContent = repSt.length ? repSt.map(o=>`S${o.st} (gap ${o.gap})`).join(", ") : "—";
     $("repStreets2").textContent = repSt.length ? `count: ${repSt.length}` : "—";
 
-    const sessChrono = spins.filter(x => x.s === sessionId).map(x => x.n).reverse();
+    const sessChrono = spins.map(x => x.n).reverse();
 
-    const hc = hydraCold4SinceGreen(sessChrono);
-    $("hydraCold4").textContent = hc.cold4.map(o=>`${o.n}(${o.c})`).join("  ");
-    $("hydraCold4b").textContent = `sinceGN=${hc.len}`;
+    const vm = verticalMetrics(sessChrono);
+    const d1 = vm.driest.D1, d2 = vm.driest.D2, d3 = vm.driest.D3;
+    // Compact format: D#/C# (age,last15Hits)
+    $("verticalCols").textContent = `D1/${d1.c} (${d1.age}, ${d1.hits15}) • D2/${d2.c} (${d2.age}, ${d2.hits15}) • D3/${d3.c} (${d3.age}, ${d3.hits15})`;
+    const s1 = vm.streak.D1, s2 = vm.streak.D2, s3 = vm.streak.D3;
+    $("verticalCols2").textContent = `Streaks: D1 ${s1.curCol||"—"}×${s1.cur} (max ${s1.max}) • D2 ${s2.curCol||"—"}×${s2.cur} (max ${s2.max}) • D3 ${s3.curCol||"—"}×${s3.cur} (max ${s3.max}) • Top driest: ${vm.top5.map(x=>x.d+"/"+x.c+"("+x.age+")").join(", ")}`;
+    const alertAge = Math.max(d1.age,d2.age,d3.age) >= 10;
+    const alertStreak = (s1.cur>=3) || (s2.cur>=3) || (s3.cur>=3);
+    const vb = $("verticalColsBox");
+    if (vb) vb.classList.toggle("alert", alertAge || alertStreak);
 
     
 const db = dbcdsStatsLiveSinceGreen(sessChrono);
@@ -2669,7 +3517,6 @@ if (db.ok) {
     // Driest 5 Corners (LIVE, newest-first; 12 non-overlapping corners only)
     try {
       const sesSpins = spins
-        .filter(x => x.s === sessionId)
         .map(x => (x.n === "00") ? 99 : Number(x.n))
         .filter(n => Number.isFinite(n));
 
@@ -2677,9 +3524,28 @@ if (db.ok) {
         $("corners5").textContent = "—";
         $("corners5b").textContent = "—";
       } else {
-        const snap = computeRunningDriest5(sesSpins);
-        $("corners5").textContent = `${snap.setFlag} — ${snap.line || "—"}`;
-        $("corners5b").textContent = "LIVE — (x) is spins since last hit.";
+        // Hard-sync to the newest stored spin so a just-hit corner cannot linger one spin late.
+        const newestSpin = sesSpins[0];
+        const allCorners = computeCornersStatsFromSpins(sesSpins);
+        const newestCornerIds = (NUM_TO_CORNERS.get(newestSpin) || []);
+        const synced = allCorners.map(c => {
+          if (newestCornerIds.includes(c.id)) {
+            return { ...c, age: 0 };
+          }
+          return c;
+        });
+
+        const sorted = [...synced].sort((a,b)=>{
+          if (a.age !== b.age) return b.age - a.age;
+          if (a.hits !== b.hits) return a.hits - b.hits;
+          return a.id.localeCompare(b.id);
+        }).slice(0,5);
+
+        const line = sorted.map(c => `${c.id} (${c.age})`).join(" / ");
+        $("corners5").textContent = `D5C — ${line || "—"}`;
+        $("corners5b").textContent = newestCornerIds.length
+          ? `LIVE — newest spin ${newestSpin} hit ${newestCornerIds.join(", ")}`
+          : "LIVE — (x) is spins since last hit.";
       }
     } catch(e) {
       $("corners5").textContent = "—";
@@ -2714,6 +3580,10 @@ if (db.ok) {
       b.addEventListener("click", () => showExplain(b.getAttribute("data-exp")));
     });
 
+    if ($("renderStatus")) $("renderStatus").textContent = `Render: OK • ${new Date().toLocaleTimeString()}`;
+    renderPerformance();
+    applyTableModeUI();
+
     // Primary explain button
     const pb = $("primaryExplainBtn");
     if(STRATEGY_DETAILS[scored.primary.name] && scored.primary.name !== "Sit out") {
@@ -2728,10 +3598,11 @@ if (db.ok) {
   } catch(e) {
     console.error('Render error', e);
     try { const rr = $("reason"); if (rr) rr.textContent = 'Render error: ' + (e && (e.message || e.toString()) || e); } catch(_) {}
+    try { const rs = $("renderStatus"); if (rs) rs.textContent = 'Render error: ' + (e && (e.message || e.toString()) || e); } catch(_) {}
     try { const rc = $("recommend"); if (rc && rc.textContent === 'Sit out') rc.textContent = 'Render error'; } catch(_) {}
   }
-// Rebuild keypad after every render (render() replaces the DOM and can wipe it)
-    try { buildKeypad(); } catch(e) { console.warn('Keypad build failed', e); }
+// Keep keypad alive on mobile/Safari
+  try { ensureKeypad(); } catch(e) { console.warn('Keypad ensure failed', e); }
 }
 
   // UI wiring
@@ -2760,6 +3631,14 @@ if (db.ok) {
 
   on("copyCsvBtn", "click", copyCsv);
   on("downloadCsvBtn", "click", downloadCsv);
+  on("modeCanSitBtn", "click", () => { tableMode = "CAN_SIT_OUT"; save(); render(); });
+  on("modeMustBetBtn", "click", () => { tableMode = "MUST_BET"; save(); render(); });
+  on("logPlayBtn", "click", () => logAction("PLAY"));
+  on("logSitBtn", "click", () => logAction("SIT"));
+  on("settleWinBtn", "click", () => settleActivePlay("WIN"));
+  on("settleLossBtn", "click", () => settleActivePlay("LOSS"));
+  on("settlePushBtn", "click", () => settleActivePlay("PUSH"));
+  on("clearPerfBtn", "click", clearPerformance);
 
   on("importBtn", "click", () => {
     const res = importCsvText($("importArea").value);
@@ -2770,7 +3649,7 @@ if (db.ok) {
     $("importStatus").textContent = "";
   });
 
-    // ---------------- Wheel View (Last 20) ----------------
+    // ---------------- Wheel View ----------------
     const WHEEL = [0,28,9,26,30,11,7,20,32,17,5,22,34,15,3,24,36,13,1,"00",27,10,25,29,12,8,19,31,18,6,21,33,16,4,23,35,14,2];
 
     function numLabel(n){ return (n === "00") ? "00" : String(n); }
@@ -2942,11 +3821,19 @@ if (db.ok) {
 
     window.addEventListener("resize", ()=>{ if(wheelModal && wheelModal.style.display !== "none") drawWheelHistogram(20); });
   load();
+  try { buildKeypad(); } catch(e) { console.warn('Initial keypad build failed', e); }
 
   if(trendDismissBtn){
     trendDismissBtn.onclick = function(){ if(trendAlert) trendAlert.style.display="none"; };
   }
-render();
+  render();
+  try {
+    const dbg = $("kpDebug");
+    if (dbg) dbg.textContent = "Spin count: " + (Array.isArray(spins) ? spins.length : 0);
+  } catch(_) {}
+  setTimeout(() => { try { ensureKeypad(); } catch(_) {} }, 50);
+  setTimeout(() => { try { ensureKeypad(); } catch(_) {} }, 300);
+  setTimeout(() => { try { ensureKeypad(); } catch(_) {} }, 800);
 });
 
 /* === WHEEL WAVE TRACKER (SAFE ADD-ON) ===
