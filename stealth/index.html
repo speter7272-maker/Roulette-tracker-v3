@@ -115,8 +115,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: R2 • IRONING • v1.65.14 (speed + state delta fixed)</div>
-    <div class="build">R2 TRACKER — IRONING • v1.65.14 (speed + state delta fixed)</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: R2 • IRONING • v1.65.15 (merged state view)</div>
+    <div class="build">R2 TRACKER — IRONING • v1.65.15 (merged state view)</div>
     <div class="sub">Build date: <b>2026-01-10</b>. No-session mode. Clear between sessions and rename the Casino field manually. Mobile layout tuned for strategy reads: entry signals, dozens/columns imbalance, 10-2-Win readiness, Greenland/green status, and Junko quadrant counts. Saves on-device.</div>
 
     <div class="card">
@@ -181,6 +181,7 @@
               <div class="k">Table state</div>
               <div class="v" id="liveState">—</div>
               <div class="k" id="liveStateMeta">—</div>
+              <div class="k" id="liveStateDelta">—</div>
             </div>
             <div class="box">
               <div class="k">10-2-Win sectors</div>
@@ -194,11 +195,6 @@
             <div class="box">
               <div class="k">Imbalance</div>
               <div class="v mono" id="liveImbalance">—</div>
-            </div>
-            <div class="box">
-              <div class="k">Last spin effect</div>
-              <div class="v mono" id="lastSpinEffect">—</div>
-              <div class="k" id="lastSpinEffect2">—</div>
             </div>
           </div>
         </div>
@@ -3609,8 +3605,7 @@ if (stateTracker.current !== scored.state) {
     if ($("liveRepeat")) $("liveRepeat").textContent = `Nums ${repNums.length} • Streets ${repSt.length} • ${repHeavy ? 'Repeat-Heavy' : 'Calm'} • ${clusterStage}`;
     if ($("liveImbalance")) $("liveImbalance").textContent = `Dozen gap ${dozSig.gap} • Column gap ${colSig.gap} • Driest corner ${(($("corners5")&&$("corners5").textContent)||'—').replace(/^D5C — /,'')}`;
     const spinEffect = buildLastSpinEffect(currSummary, prevSummary);
-    if ($("lastSpinEffect")) $("lastSpinEffect").textContent = spinEffect.title;
-    if ($("lastSpinEffect2")) $("lastSpinEffect2").textContent = spinEffect.meta;
+    if ($("liveStateDelta")) $("liveStateDelta").textContent = `${spinEffect.title} • ${spinEffect.meta}`;
 
 
   // Trend → strategy guardrails (user-defined)
