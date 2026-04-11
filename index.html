@@ -87,6 +87,8 @@
     .sectionTitle{font-weight:900;margin-bottom:8px}
     .stat .box.full{grid-column:1/-1}
     .signalGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .confirmStrip{display:grid;grid-template-columns:1fr;gap:8px;margin-top:10px}
+    .confirmBox{background:#0c1730;border:1px solid var(--border);border-radius:14px;padding:10px}
     .decision{margin-top:6px;font-size:12px;color:#cbd5e1;line-height:1.35}
     .decision b{color:#fff}
     .mutedLine{font-size:11px;color:var(--muted);line-height:1.35}
@@ -113,8 +115,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: R2 • IRONING • v1.65.12 (cassandra section live)</div>
-    <div class="build">R2 TRACKER — IRONING • v1.65.12 (cassandra section live)</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: R2 • IRONING • v1.65.15 (merged state view)</div>
+    <div class="build">R2 TRACKER — IRONING • v1.65.15 (merged state view)</div>
     <div class="sub">Build date: <b>2026-01-10</b>. No-session mode. Clear between sessions and rename the Casino field manually. Mobile layout tuned for strategy reads: entry signals, dozens/columns imbalance, 10-2-Win readiness, Greenland/green status, and Junko quadrant counts. Saves on-device.</div>
 
     <div class="card">
@@ -163,6 +165,13 @@
           <div id="keypadAnchor" class="sectionTitle" style="margin-bottom:0">Tap keypad</div>
           <div id="kpDebug" class="small mono" style="margin:6px 0 10px; opacity:.9">Spin count: 0</div>
           <div class="kbd" id="kbd"></div>
+          <div class="confirmStrip">
+            <div class="confirmBox">
+              <div class="k">Quick confirm</div>
+              <div class="v mono" id="last5Quick">—</div>
+              <div class="k" id="last5QuickMeta">Latest 5 spins entered</div>
+            </div>
+          </div>
         </div>
 
         <div class="card sticky tight">
@@ -172,6 +181,7 @@
               <div class="k">Table state</div>
               <div class="v" id="liveState">—</div>
               <div class="k" id="liveStateMeta">—</div>
+              <div class="k" id="liveStateDelta">—</div>
             </div>
             <div class="box">
               <div class="k">10-2-Win sectors</div>
@@ -3407,6 +3417,57 @@ function activateCornerFreezeToggle(spins){
     }
     return freezeCurrentTop5(spins);
   }
+
+function stateSummaryFromVals(vals, totalSpins){
+  const cts = counts(vals);
+  const repNums = findRepeatNumbers(vals, 5);
+  const repSt = findRepeatStreets(vals, 5);
+  const repHeavy = repSt.length >= 3 || repNums.length >= 2;
+  const qHits = { GN: Number(cts.gn||0), HO: Number(cts.ho||0), LO: Number(cts.lo||0), M: Number(cts.m||0) };
+  const qHot = Object.entries(qHits).sort((a,b)=>(Number(b[1]||0)-Number(a[1]||0)) || a[0].localeCompare(b[0]))[0] || ["—",0];
+  const qDry = Object.entries(qHits).sort((a,b)=>(Number(a[1]||0)-Number(b[1]||0)) || a[0].localeCompare(b[0]))[0] || ["—",0];
+  const dozGap = Math.max(cts.d1,cts.d2,cts.d3) - Math.min(cts.d1,cts.d2,cts.d3);
+  const colGap = Math.max(cts.c1,cts.c2,cts.c3) - Math.min(cts.c1,cts.c2,cts.c3);
+  const scored = safeScoreStrategies(vals);
+  return {
+    state: scored && scored.state ? scored.state : "—",
+    repNums: repNums.length,
+    repSt: repSt.length,
+    repHeavy,
+    dozGap,
+    colGap,
+    hotQ: qHot[0],
+    dryQ: qDry[0]
+  };
+}
+
+function formatLast5(spinObjs){
+  const arr = (spinObjs || []).slice(0,5).map(x => x.n==="00" ? "00" : String(x.n));
+  return arr.length ? arr.join(", ") : "—";
+}
+
+function buildLastSpinEffect(curr, prev){
+  if(!curr) return {title:"—", meta:"—"};
+  if(!prev){
+    return {
+      title: curr.state || "—",
+      meta: `Initial read • dozen gap ${curr.dozGap} • column gap ${curr.colGap}`
+    };
+  }
+  const parts = [];
+  if(curr.state !== prev.state) parts.push(`${prev.state} → ${curr.state}`);
+  else parts.push(`${curr.state} held`);
+  if(curr.repNums !== prev.repNums) parts.push(`nums ${prev.repNums}→${curr.repNums}`);
+  if(curr.repSt !== prev.repSt) parts.push(`streets ${prev.repSt}→${curr.repSt}`);
+  if(curr.dozGap !== prev.dozGap) parts.push(`Dgap ${prev.dozGap}→${curr.dozGap}`);
+  if(curr.colGap !== prev.colGap) parts.push(`Cgap ${prev.colGap}→${curr.colGap}`);
+  return {
+    title: parts.join(" • "),
+    meta: `Hot ${curr.hotQ} • Dry ${curr.dryQ} • repeat-heavy ${curr.repHeavy ? "yes" : "no"}`
+  };
+}
+
+
 function render() {
   try {
     $("winLabel").textContent = "Last " + windowN;
@@ -3425,6 +3486,9 @@ function render() {
     const sessSpinObjs = spins; // newest-first objects {n,t,s}
     const sessNums = sessSpinObjs.map(x => x.n);
     const sessTotal = sessNums.length;
+    const prevWindow = sessNums.slice(1, 1 + windowN);
+    const currSummary = stateSummaryFromVals(recent, sessTotal);
+    const prevSummary = prevWindow.length ? stateSummaryFromVals(prevWindow, Math.max(0, sessTotal-1)) : null;
 
     const cts = counts(recent);
     // Ages are session-wide (exact). Counts remain window-based.
@@ -3460,6 +3524,8 @@ function render() {
     $("lastList").textContent = fullHistoryText;
     if ($("historyMeta")) $("historyMeta").textContent = `Stored spins: ${sessSpinObjs.length}`;
     if ($("historyWindowMeta")) $("historyWindowMeta").textContent = `Last ${windowN} used for stats: ${recent.length ? recent.map(x => x==="00" ? "00" : String(x)).join(", ") : "—"}`;
+    if ($("last5Quick")) $("last5Quick").textContent = formatLast5(sessSpinObjs);
+    if ($("last5QuickMeta")) $("last5QuickMeta").textContent = sessSpinObjs.length ? `Newest first • latest spin ${sessSpinObjs[0].n==="00"?"00":sessSpinObjs[0].n}` : "Latest 5 spins entered";
 
     const scored = safeScoreStrategies(recent);
     const sinceGreen = Number.isFinite(gdc) ? gdc : 0;
@@ -3538,6 +3604,8 @@ if (stateTracker.current !== scored.state) {
     if ($("live102Meta")) $("live102Meta").textContent = `Gap ${qGap} • ${qMode} • Hot ${qHot[0]}`;
     if ($("liveRepeat")) $("liveRepeat").textContent = `Nums ${repNums.length} • Streets ${repSt.length} • ${repHeavy ? 'Repeat-Heavy' : 'Calm'} • ${clusterStage}`;
     if ($("liveImbalance")) $("liveImbalance").textContent = `Dozen gap ${dozSig.gap} • Column gap ${colSig.gap} • Driest corner ${(($("corners5")&&$("corners5").textContent)||'—').replace(/^D5C — /,'')}`;
+    const spinEffect = buildLastSpinEffect(currSummary, prevSummary);
+    if ($("liveStateDelta")) $("liveStateDelta").textContent = `${spinEffect.title} • ${spinEffect.meta}`;
 
 
   // Trend → strategy guardrails (user-defined)
