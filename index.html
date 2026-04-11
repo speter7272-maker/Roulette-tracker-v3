@@ -1,4 +1,4 @@
-<!-- Cassandra Corners Integrated v1.65.11 -->
+<!-- Cassandra Corners Integrated v1.65.12 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -113,8 +113,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: R2 • IRONING • v1.65.11 (cassandra integration)</div>
-    <div class="build">R2 TRACKER — IRONING • v1.65.11 (cassandra integration)</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: R2 • IRONING • v1.65.12 (cassandra section live)</div>
+    <div class="build">R2 TRACKER — IRONING • v1.65.12 (cassandra section live)</div>
     <div class="sub">Build date: <b>2026-01-10</b>. No-session mode. Clear between sessions and rename the Casino field manually. Mobile layout tuned for strategy reads: entry signals, dozens/columns imbalance, 10-2-Win readiness, Greenland/green status, and Junko quadrant counts. Saves on-device.</div>
 
     <div class="card">
@@ -248,6 +248,11 @@
             <div class="k">Strategy gates</div>
             <div class="v mono" id="strategyGates">—</div>
             <div class="k" id="strategyGates2">—</div>
+          </div>
+          <div class="box full" id="cassandraBox">
+            <div class="k">Cassandra's Corners</div>
+            <div class="v mono" id="cassandraSignal">—</div>
+            <div class="k" id="cassandraSignal2">—</div>
           </div>
         </div>
           <div class="box">
@@ -2383,6 +2388,80 @@ function allowedStrategiesByState(state, tableMode = "CAN_SIT_OUT") {
   };
 }
 
+function sameZoneStructure(vals){
+  const last7 = (vals || []).slice(0,7).filter(v => typeof v === "number" && v >= 1 && v <= 36);
+  if(!last7.length) return false;
+  const d = {1:0,2:0,3:0};
+  last7.forEach(n=>{ const dz = dozenOf(n); if(dz) d[dz]++; });
+  return Math.max(d[1], d[2], d[3]) >= 4;
+}
+
+function stateLabelForWindow(vals){
+  const arr = (vals || []).slice(0,15);
+  const c15 = counts(arr);
+  const repNumsLocal = findRepeatNumbers(arr,5);
+  const repStLocal = findRepeatStreets(arr,5);
+  const repHeavyLocal = (repStLocal.length >= 3 || repNumsLocal.length >= 2);
+  const colMax = Math.max(c15.c1,c15.c2,c15.c3);
+  const colMin = Math.min(c15.c1,c15.c2,c15.c3);
+  const dozMax = Math.max(c15.d1,c15.d2,c15.d3);
+  const dozMin = Math.min(c15.d1,c15.d2,c15.d3);
+  const unique15 = new Set(arr).size;
+  const isConcentrated = (colMax >= 7) || (dozMax >= 7);
+  const isDrought = (!repHeavyLocal) && (repNumsLocal.length === 0) && (repStLocal.length === 0) && (unique15 >= 14);
+  const isEven = (!repHeavyLocal) && (!isConcentrated) && ((colMax-colMin) <= 2) && ((dozMax-dozMin) <= 2);
+  if(repHeavyLocal) return 'Repeat-Heavy';
+  if(isDrought) return 'Cold/Drought';
+  if(isEven) return 'Even';
+  if(isConcentrated) return 'Concentrated';
+  return 'Flat / Choppy';
+}
+
+function cassandraStateInfo(vals){
+  const last15 = (vals || []).slice(0,15);
+  if(last15.length < 15) return {ready:false, layout:'WAIT', text:'Need 15 spins.', detail:'Warmup'};
+  const c15 = counts(last15);
+  const gap = Math.max(c15.d1,c15.d2,c15.d3) - Math.min(c15.d1,c15.d2,c15.d3);
+  const repNumsLocal = findRepeatNumbers(last15,5);
+  const repStLocal = findRepeatStreets(last15,5);
+  const repHeavyLocal = (repStLocal.length >= 3 || repNumsLocal.length >= 2);
+  const colEdge = Math.abs(c15.c1 - c15.c3);
+  const repeated = repNumsLocal.length >= 2;
+  const structure = (colEdge >= 3) || repeated || sameZoneStructure(last15);
+
+  const labels = [];
+  for(let back=4; back>=0; back--){
+    const end = 15 + back;
+    const start = back;
+    const slice = (vals || []).slice(start, end);
+    if(slice.length >= 15) labels.push(stateLabelForWindow(slice));
+  }
+  let changes = 0;
+  for(let i=1;i<labels.length;i++){ if(labels[i] !== labels[i-1]) changes++; }
+  const transitionBlock = (changes >= 2 && !repHeavyLocal && gap < 6);
+
+  let layout = 'STANDARD';
+  if(repHeavyLocal) layout = 'REVERSE';
+  else if(colEdge >= 3) layout = (c15.c1 > c15.c3) ? 'C2+C3' : 'C1+C2';
+
+  const ready = (!repHeavyLocal && gap >= 3 && gap <= 6 && structure && !transitionBlock);
+  let text = ready ? `READY • ${layout}` : 'WAIT';
+  let detail = `gap ${gap} • C1 ${c15.c1} vs C3 ${c15.c3} • structure ${structure ? 'YES' : 'NO'}`;
+  if(repHeavyLocal) detail = `Blocked: repeat-heavy • suggest ${layout}`;
+  else if(transitionBlock) detail = `Blocked: transition filter • state changes ${changes}/5`;
+  else if(gap < 3 || gap > 6) detail = `Blocked: gap ${gap} outside 3–6`;
+  else if(!structure) detail = 'Blocked: no structure';
+
+  return {ready, layout, gap, colEdge, structure, repHeavy:repHeavyLocal, changes, transitionBlock, text, detail};
+}
+
+function scoreCassandra(vals){
+  const info = cassandraStateInfo(vals);
+  if(!info.ready) return {score:0, why:info.detail, layout:info.layout};
+  const score = Math.max(82, Math.min(92, 90 - Math.abs(info.gap - 4) * 2 + (info.colEdge >= 3 ? 2 : 0)));
+  return {score:score, why:`Gap ${info.gap} • Layout ${info.layout} • Column edge ${info.colEdge}`, layout:info.layout};
+}
+
 function scoreStrategies(vals) {
   const plays = [];
   const add = (name, score, why, extra={}) => plays.push({name, score, why, ...extra});
@@ -2437,6 +2516,8 @@ function scoreStrategies(vals) {
   if(jh) add("Junko Hot (Quadrant Momentum)", jh.score, jh.why);
   const ss = safe("Slow & Steady (Structural Bias)", () => scoreSlowSteady(vals));
   if(ss) add("Slow & Steady (Structural Bias)", ss.score, ss.why);
+  const cass = safe("Cassandra's Corners", () => scoreCassandra(vals));
+  if(cass) add("Cassandra's Corners", cass.score, cass.why, {layout: cass.layout});
 
   // BET PACK additions
   const dbCash = safe("Dirty Bird — Cold Dozen Switch (DB-CDS) [Cash]", () => scoreDBCDS(vals,"cash"));
@@ -3396,6 +3477,12 @@ function render() {
     ];
     $("strategyGates").textContent = gateBits.join(' • ');
     $("strategyGates2").textContent = `Repeat-heavy=${repHeavy ? 'yes' : 'no'} • Tupelo ${dozSig.gap >= 3 ? 'READY' : 'WAIT'} • Double Cross ${colSig.gap >= 3 && dozSig.gap >= 3 ? 'READY' : 'WAIT'}`;
+
+    const cassInfo = cassandraStateInfo(recent);
+    if ($("cassandraSignal")) $("cassandraSignal").textContent = cassInfo.text;
+    if ($("cassandraSignal2")) $("cassandraSignal2").textContent = cassInfo.detail;
+    const cassBox = $("cassandraBox");
+    if (cassBox) cassBox.classList.toggle('alert', cassInfo.ready);
 
     $("recommend").textContent = `${scored.primary.mode} — ${scored.primary.name}`;
     $("reason").textContent = scored.primary.why || "—";
