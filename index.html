@@ -115,8 +115,8 @@
 <body>
   <div class="wrap">
     <h1>Roulette Trend Tracker</h1>
-    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: R2 • IRONING • v1.65.20 (momentum override + live numbers)</div>
-    <div class="build">R2 TRACKER — IRONING • v1.65.20 (momentum override + live numbers)</div>
+    <div id="buildStamp" class="pill" style="display:inline-block;margin-top:6px">Build: R2 • IRONING • v1.65.21 (cassandra v4.2 live read)</div>
+    <div class="build">R2 TRACKER — IRONING • v1.65.21 (cassandra v4.2 live read)</div>
     <div class="sub">Build date: <b>2026-01-10</b>. No-session mode. Clear between sessions and rename the Casino field manually. Mobile layout tuned for strategy reads: entry signals, dozens/columns imbalance, 10-2-Win readiness, Greenland/green status, and Junko quadrant counts. Saves on-device.</div>
 
     <div class="card">
@@ -195,6 +195,13 @@
             <div class="box">
               <div class="k">Imbalance</div>
               <div class="v mono" id="liveImbalance">—</div>
+            </div>
+            <div class="box">
+              <div class="k">Cassandra's Corners v4.2</div>
+              <div class="v mono" id="liveCassState">—</div>
+              <div class="k" id="liveCassMeta">—</div>
+              <div class="k" id="liveCassDetail">—</div>
+              <button class="btn small" id="liveCassExplainBtn" type="button" style="margin-top:8px">Explain</button>
             </div>
           </div>
         </div>
@@ -3679,6 +3686,145 @@ function streetToNumbers(s){
   return [base, base+1, base+2];
 }
 
+
+function cassCornerSetsV42(){
+  return {
+    STANDARD: {
+      1: [[1,5],[8,12]],
+      2: [[13,17],[20,24]],
+      3: [[25,29],[32,36]]
+    },
+    REVERSE: {
+      1: [[2,6],[7,11]],
+      2: [[14,18],[19,23]],
+      3: [[26,30],[31,35]]
+    }
+  };
+}
+
+function cassDozenOf(n){
+  if(n===0 || n==="00" || n==null) return null;
+  const x=Number(n);
+  if(!Number.isFinite(x)) return null;
+  return x<=12?1:(x<=24?2:3);
+}
+
+function cassColOf(n){
+  if(n===0 || n==="00" || n==null) return null;
+  const x=Number(n);
+  if(!Number.isFinite(x) || x<1 || x>36) return null;
+  const r=x%3;
+  return r===1?1:(r===2?2:3);
+}
+
+function cassCornerHitCount(pair, vals){
+  let hits=0;
+  for(const n of vals){ if(n===pair[0] || n===pair[1]) hits++; }
+  return hits;
+}
+
+function cassCornerAge(pair, vals){
+  for(let i=0;i<vals.length;i++){
+    const n=vals[i];
+    if(n===pair[0] || n===pair[1]) return i;
+  }
+  return vals.length;
+}
+
+function buildCassandraV42Read(valsNewestFirst){
+  const vals10=(valsNewestFirst||[]).slice(0,10);
+  const vals5=(valsNewestFirst||[]).slice(0,5);
+  const total=(valsNewestFirst||[]).length;
+  if(vals10.length<10){
+    return {
+      state:'WAIT',
+      meta:`Need 10 spins (${vals10.length}/10)` ,
+      detail:'Warmup for table state / dozen selection.',
+      explain:'Cassandra\'s Corners v4.2\n\nNeed at least 10 spins for table-state / dozen selection and 5 spins for set dryness.'
+    };
+  }
+  const d={1:0,2:0,3:0};
+  for(const n of vals10){ const z=cassDozenOf(n); if(z) d[z]++; }
+  const dozenRows=[1,2,3].map(z=>({z,h:d[z]}));
+  const hotRow=[...dozenRows].sort((a,b)=>(b.h-a.h)||(a.z-b.z))[0];
+  const coldRow=[...dozenRows].sort((a,b)=>(a.h-b.h)||(a.z-b.z))[0];
+  const table_state=hotRow.h>=4?'HOT':'BALANCED';
+
+  let col2Drought=0;
+  for(const n of vals10){
+    const c=cassColOf(n);
+    if(c===2) break;
+    col2Drought++;
+  }
+  let target_dozen = (table_state==='HOT') ? hotRow.z : coldRow.z;
+  if(table_state==='HOT' && col2Drought>5) target_dozen = coldRow.z;
+
+  const sets=cassCornerSetsV42();
+  const stdPairs=[...sets.STANDARD[1],...sets.STANDARD[2],...sets.STANDARD[3]];
+  const revPairs=[...sets.REVERSE[1],...sets.REVERSE[2],...sets.REVERSE[3]];
+  const stdHits=stdPairs.reduce((a,p)=>a+cassCornerHitCount(p, vals5),0);
+  const revHits=revPairs.reduce((a,p)=>a+cassCornerHitCount(p, vals5),0);
+  const diamond_set = stdHits<=revHits ? 'STANDARD' : 'REVERSE';
+  const chosen = sets[diamond_set][target_dozen].map(pair=>({pair, hits:cassCornerHitCount(pair, vals5), age:cassCornerAge(pair, vals5)}));
+  chosen.sort((a,b)=>(a.hits-b.hits)||(b.age-a.age)||(a.pair[0]-b.pair[0]));
+  const active = chosen.slice(0,2).map(x=>`${x.pair[0]}/${x.pair[1]}`);
+  const paused = col2Drought>5;
+  const col2Step = paused ? 'SITOUT' : '1';
+
+  const state=`${diamond_set} • ${table_state} D${target_dozen}`;
+  const meta=`Corners ${active.join(', ')} • $5 each • C2 ${col2Step}`;
+  const detail=`D1:${d[1]} D2:${d[2]} D3:${d[3]} • std:${stdHits} rev:${revHits} • C2 drought ${col2Drought}`;
+  const explain = [
+    'Cassandra\'s Corners v4.2',
+    '',
+    `table_state = ${table_state}`,
+    `target_dozen = ${target_dozen}`,
+    `diamond_set = ${diamond_set}`,
+    `active_corners = ${active.join(', ')}`,
+    'corner_unit = $5',
+    'corner_count = 2',
+    `col2_fib_step = ${col2Step}`,
+    `col2_paused = ${paused ? 'true' : 'false'}`,
+    'session_pnl = tracker session log',
+    'cashout_hit = false',
+    'stoploss_hit = false',
+    '',
+    'Session exits: cashout +250, stoploss -1000',
+    'Lookbacks: state/dozen = last 10, corner detail = last 5',
+    '',
+    'Table-state rule:',
+    `- Dozen hits last 10 = D1:${d[1]} D2:${d[2]} D3:${d[3]}`,
+    `- ${table_state==='HOT' ? 'HOT dozen selected' : 'BALANCED -> coldest dozen selected'}`,
+    `${col2Drought>5 ? '- 2nd column drought > 5 -> forced coldest dozen' : '- 2nd column drought <= 5'}`,
+    '',
+    'Diamond-set rule:',
+    `- STANDARD hits in last 5 = ${stdHits}`,
+    `- REVERSE hits in last 5 = ${revHits}`,
+    `- chosen set = ${diamond_set}`,
+    '',
+    'Entry:',
+    `- Start with 2 driest corners in D${target_dozen}: ${active.join(', ')}`,
+    '- Also place $5 on 2nd column unless paused.',
+    '',
+    'Progressions:',
+    '- Active corners start at $5 each, max 5 corners.',
+    '- On corner loss spin: double all active corners and add 1 new corner (max 5).',
+    '- On corner win: reset to $5, reduce back to 2 corners, switch to OTHER set, re-evaluate dozen.',
+    '- 2nd column fib in $5 units: 1,2,3,5,8,13 then SITOUT until natural C2 hit.'
+  ].join('\n');
+  return {state, meta, detail, explain};
+}
+
+function wireLiveCassExplain(){
+  const btn=$("liveCassExplainBtn");
+  if(!btn || btn.__wiredCass) return;
+  btn.__wiredCass=true;
+  btn.addEventListener('click', ()=>{
+    const body = window.__liveCassExplainText || 'No Cassandra read available.';
+    openExplain("Cassandra's Corners v4.2", body);
+  });
+}
+
 function render() {
   try {
     $("winLabel").textContent = "Last " + windowN;
@@ -3815,6 +3961,12 @@ if (stateTracker.current !== scored.state) {
     if ($("live102Meta")) $("live102Meta").textContent = `Gap ${qGap} • ${qMode} • Hot ${qHot[0]}`;
     if ($("liveRepeat")) $("liveRepeat").textContent = `Nums ${repNums.length} • Streets ${repSt.length} • ${repHeavy ? 'Repeat-Heavy' : 'Calm'} • ${clusterStage}`;
     if ($("liveImbalance")) $("liveImbalance").textContent = `Dozen gap ${dozSig.gap} • Column gap ${colSig.gap} • Driest corner ${(($("corners5")&&$("corners5").textContent)||'—').replace(/^D5C — /,'')}`;
+    const cassRead = buildCassandraV42Read(sessNums);
+    if ($("liveCassState")) $("liveCassState").textContent = cassRead.state;
+    if ($("liveCassMeta")) $("liveCassMeta").textContent = cassRead.meta;
+    if ($("liveCassDetail")) $("liveCassDetail").textContent = cassRead.detail;
+    window.__liveCassExplainText = cassRead.explain;
+    wireLiveCassExplain();
     const spinEffect = buildLastSpinEffect(currSummary, prevSummary);
     if ($("liveStateDelta")) $("liveStateDelta").textContent = `${spinEffect.title} • ${spinEffect.meta}`;
     currentPlayRec = buildPlayRecommendation(sessNums, recent, cts, currSummary.state, repNums, repSt, dozSig, colSig);
