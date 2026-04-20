@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Roulette Trend Tracker • R2 • v1.66.04</title>
+  <title>Roulette Trend Tracker • R2 • v1.66.05</title>
   <style>
     :root {
       color-scheme: dark;
@@ -22,192 +22,211 @@
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       background: linear-gradient(180deg, #070b14, #0b1220 40%, #070b14);
       color: var(--txt);
-      padding: 20px;
     }
 
-    .wrap { max-width: 980px; margin: 0 auto; }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin: 12px 0; }
-    .sectionTitle { font-weight: 900; margin-bottom: 10px; text-transform: uppercase; font-size: 14px; letter-spacing: 0.5px; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 18px 14px 40px; }
+    .card { background: rgba(15, 26, 46, .88); border: 1px solid var(--border); border-radius: 16px; padding: 14px; margin: 12px 0; box-shadow: 0 8px 28px rgba(0,0,0,.25); }
+    .sectionTitle { font-weight: 900; margin-bottom: 8px; text-transform: uppercase; font-size: 13px; }
     
-    /* NEW: Active Play Styles */
+    /* Active Play & Drift Monitor Styles */
     @keyframes drift-flash {
       0% { background: rgba(239, 68, 68, 0.1); }
       50% { background: rgba(239, 68, 68, 0.4); }
       100% { background: rgba(239, 68, 68, 0.1); }
     }
     .drift-alert-active { animation: drift-flash 1s infinite; border: 2px solid var(--danger) !important; }
-    .play-btn-small { background: var(--ok) !important; color: #000 !important; font-weight: 900; border: none; padding: 5px 10px; border-radius: 8px; cursor: pointer; }
+    .play-btn-small { background: var(--ok) !important; color: #000 !important; font-weight: 900; border: none; padding: 5px 12px; border-radius: 8px; cursor: pointer; }
     
     .btn { appearance: none; border: 1px solid var(--border); background: var(--chip); color: var(--txt); padding: 10px 12px; border-radius: 12px; font-weight: 700; cursor: pointer; }
-    .btn.danger { background: rgba(239, 68, 68, 0.1); border-color: var(--danger); }
-    
-    .pill { background: var(--chip); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; font-size: 12px; color: var(--muted); display: inline-block; }
+    .btn.danger { border-color: rgba(239, 68, 68, .45); background: rgba(239, 68, 68, .12); }
+    .pill { background: var(--chip); border: 1px solid var(--border); border-radius: 999px; padding: 8px 10px; font-size: 12px; color: var(--muted); }
+    .kbd { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+    .key { padding: 12px 8px; border-radius: 12px; border: 1px solid var(--border); background: #0c1730; color: var(--txt); font-weight: 900; cursor: pointer; }
+    .key.green { background: rgba(16, 185, 129, .16); border-color: rgba(16, 185, 129, .35); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
     .topplays { display: grid; grid-template-columns: 1fr; gap: 8px; }
-    .playcard { border: 1px solid var(--border); background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; }
-    .playhdr { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
-    .small { font-size: 12px; opacity: 0.8; line-height: 1.4; }
-    .v { font-size: 18px; font-weight: 900; }
-    
-    /* Grid for Keypad */
-    .kbd { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 15px; }
-    .key { padding: 15px 5px; border-radius: 10px; border: 1px solid var(--border); background: #0c1730; color: white; font-weight: 900; cursor: pointer; }
-    .key.green { background: #10b981; }
+    .playcard { border: 1px solid rgba(255, 255, 255, .12); background: rgba(255, 255, 255, .04); padding: 10px; border-radius: 12px; }
+    .playhdr { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+    .small { font-size: 12px; opacity: .9; line-height: 1.25; }
+    .box { background: #0c1730; border: 1px solid var(--border); border-radius: 14px; padding: 10px; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    @media(min-width: 860px) { .grid { grid-template-columns: 1.1fr .9fr; } }
   </style>
 </head>
 <body>
-
   <div class="wrap">
-    <h1 style="text-align:center;">Roulette Architect <span class="pill">v1.66.04</span></h1>
+    <h1>Roulette Trend Tracker <span class="pill" style="vertical-align:middle">v1.66.05</span></h1>
 
-    <div id="activePlayDash" class="card" style="display:none; border-color: var(--accent); background: rgba(96,165,250,0.05);">
-      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-        <div>
-          <div class="sectionTitle" style="color: var(--accent);">Currently Playing</div>
-          <div id="lockedStrategyName" class="v">—</div>
-          <div id="lockedTableState" class="pill" style="margin-top:8px;">State: —</div>
-        </div>
-        <button class="btn danger" id="endStrategyBtn">END STRATEGY (WIN/ABORT)</button>
-      </div>
-      
-      <div id="driftWarning" class="card" style="display:none; margin-top:15px; border-color: var(--danger); text-align:center;">
-        <div style="font-weight:900; color: var(--danger);">⚠️ ABORT: TABLE DRIFT DETECTED</div>
-        <div class="small" id="driftReason">Repeats detected in last 5 spins.</div>
+    <div class="card">
+      <div style="display:flex; gap:10px; flex-wrap:wrap">
+        <div class="pill">Spins: <b id="spinCount">0</b></div>
+        <div class="pill">Green Drought: <b id="greenDrought">0</b></div>
+        <div class="pill">Table State: <b id="liveState">INITIALIZING</b></div>
       </div>
     </div>
 
-    <div id="topPlaysContainer" class="card">
-      <div class="sectionTitle">Top 5 strategies right now</div>
-      <div id="topPlays" class="topplays"></div>
-    </div>
-
-    <div class="card">
-      <div class="sectionTitle">Input Last Spin</div>
-      <div class="kbd" id="kbd">
+    <div class="grid">
+      <div class="sidecol">
+        <div class="card">
+          <div class="sectionTitle">Tap Keypad</div>
+          <div class="kbd" id="kbd">
+            </div>
         </div>
-    </div>
 
-    <div class="card">
-      <div class="sectionTitle">Spin History (Newest First)</div>
-      <div id="historyDisplay" class="small" style="word-break: break-all; font-family: monospace;">No spins yet.</div>
+        <div id="activePlayDash" class="card" style="display:none; border-color: var(--accent); background: rgba(96,165,250,0.05);">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+              <div class="sectionTitle" style="color: var(--accent);">Currently Playing</div>
+              <div id="lockedStrategyName" style="font-size:18px; font-weight:900">—</div>
+              <div id="lockedTableState" class="pill" style="margin-top:8px; display:inline-block">Frozen State: —</div>
+            </div>
+            <button class="btn danger" id="endStrategyBtn">END STRATEGY</button>
+          </div>
+          <div id="driftWarning" class="box" style="display:none; margin-top:12px; border-color: var(--danger); text-align:center;">
+            <div style="font-weight:900; color: var(--danger);">⚠️ ABORT: TABLE DRIFT DETECTED</div>
+            <div class="small" id="driftReason">Repeating micro-streaks found.</div>
+          </div>
+        </div>
+
+        <div id="topPlaysContainer" class="card">
+          <div class="sectionTitle">Top 5 strategies right now</div>
+          <div id="topPlays" class="topplays"></div>
+        </div>
+      </div>
+
+      <div class="sidecol">
+        <div class="card">
+          <div class="sectionTitle">Live Metrics</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px">
+            <div class="box">
+              <div class="small">Dozens (D1/D2/D3)</div>
+              <div id="doz" class="mono" style="font-weight:900">—</div>
+            </div>
+            <div class="box">
+              <div class="small">Columns (C1/C2/C3)</div>
+              <div id="cols" class="mono" style="font-weight:900">—</div>
+            </div>
+            <div class="box" style="grid-column: 1 / -1">
+              <div class="small">Junko Quadrants</div>
+              <div id="junko" class="mono" style="font-size:11px">—</div>
+            </div>
+          </div>
+          <div class="box" style="margin-top:8px">
+            <div class="small">Greenland Status</div>
+            <div id="greenland" class="mono">—</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="sectionTitle">Spin History</div>
+          <div id="lastList" class="mono small" style="max-height:150px; overflow:auto; word-break:break-all">No spins logged.</div>
+        </div>
+      </div>
     </div>
   </div>
 
   <script>
-    // --- GLOBAL DATA ---
-    let spins = []; 
+    let spins = [];
     let lockedPlayName = null;
     let frozenTableState = null;
+    let gdc = 0;
 
     const $ = (id) => document.getElementById(id);
 
-    // --- CORE LOGIC ---
-    function addSpin(val) {
+    function addSpin(n) {
+      const val = n === "00" ? "00" : Number(n);
       spins.unshift({ n: val, t: Date.now() });
-      if (spins.length > 100) spins.pop();
+      if (val === 0 || val === "00") gdc = 0; else gdc++;
       render();
     }
 
     function render() {
-      // 1. Update History
-      $("historyDisplay").textContent = spins.map(s => s.n).join(", ") || "No spins yet.";
+      $("spinCount").textContent = spins.length;
+      $("greenDrought").textContent = gdc;
+      $("lastList").textContent = spins.map(s => s.n).join(", ");
 
-      // 2. Determine Table State (Simplified for Demo)
-      let currentState = spins.length < 15 ? "WAITING" : "STRUCTURED";
-      
-      // 3. Update Recommendations or Locked View
-      const scored = { state: currentState, plays: getMockPlays() };
-      updateStrategyUI(scored);
+      const recent = spins.slice(0, 15).map(s => s.n);
+      const state = spins.length < 15 ? "WAIT FOR 15" : "STRUCTURED";
+      $("liveState").textContent = lockedPlayName ? "LOCKED: " + frozenTableState : state;
+
+      // Update RESTORED Metrics
+      updateRestoredMetrics(recent);
+
+      // Update Hit-and-Run UI
+      updateStrategyUI(state);
       checkTableDrift();
     }
 
-    function updateStrategyUI(scored) {
+    function updateRestoredMetrics(recent) {
+      const d = {1:0, 2:0, 3:0}, c = {1:0, 2:0, 3:0};
+      recent.forEach(n => {
+        if (n === 0 || n === "00") return;
+        d[n <= 12 ? 1 : (n <= 24 ? 2 : 3)]++;
+        const col = n % 3;
+        c[col === 1 ? 1 : (col === 2 ? 2 : 3)]++;
+      });
+      $("doz").textContent = `${d[1]} / ${d[2]} / ${d[3]}`;
+      $("cols").textContent = `${c[1]} / ${c[2]} / ${c[3]}`;
+      $("junko").textContent = "GN " + d[1] + " | HO " + d[2] + " | LO " + d[3];
+      $("greenland").textContent = "sinceGreen=" + gdc;
+    }
+
+    function updateStrategyUI(state) {
       const container = $("topPlaysContainer");
       const activeDash = $("activePlayDash");
       const list = $("topPlays");
 
       if (lockedPlayName) {
-        container.style.display = "none";
-        activeDash.style.display = "block";
+        container.style.display = "none"; activeDash.style.display = "block";
         $("lockedStrategyName").textContent = lockedPlayName;
         $("lockedTableState").textContent = "Frozen State: " + frozenTableState;
         return;
       }
 
-      container.style.display = "block";
-      activeDash.style.display = "none";
+      container.style.display = "block"; activeDash.style.display = "none";
       list.innerHTML = "";
 
-      // Show Top 5
-      scored.plays.slice(0, 5).forEach((p, idx) => {
-        const div = document.createElement("div");
-        div.className = "playcard";
-        div.innerHTML = `
-          <div class="playhdr">
-            <div>
-              <div style="font-weight:900">${idx+1}. ${p.name}</div>
-              <div class="small">${p.why}</div>
-            </div>
-            <button class="play-btn-small" onclick="lockStrategy('${p.name}', '${scored.state}')">PLAY</button>
-          </div>
-        `;
-        list.appendChild(div);
-      });
-    }
-
-    window.lockStrategy = function(name, state) {
-      lockedPlayName = name;
-      frozenTableState = state;
-      render();
-    };
-
-    $("endStrategyBtn").onclick = function() {
-      lockedPlayName = null;
-      frozenTableState = null;
-      $("driftWarning").style.display = "none";
-      render();
-    };
-
-    function checkTableDrift() {
-      if (!lockedPlayName || spins.length < 6) return;
-      const last5 = spins.slice(0, 5).map(s => s.n);
-      const unique = new Set(last5);
-      
-      const warnBox = $("driftWarning");
-      if (unique.size <= 3) { // Simple repeat detection
-        warnBox.style.display = "block";
-        warnBox.classList.add("drift-alert-active");
-        $("driftReason").textContent = "Micro-cluster detected (Repeats in last 5)";
-      } else {
-        warnBox.style.display = "none";
-      }
-    }
-
-    // --- UTILS ---
-    function getMockPlays() {
-      return [
+      const strategies = [
         { name: "Cassandra Corners", why: "Strong Dozen imbalance detected." },
         { name: "12 Soldiers", why: "Vertical column pattern emerging." },
         { name: "6 Diamonds", why: "Table is in a cold/drought state." },
         { name: "Easy Street", why: "Even street distribution bias." },
         { name: "WB-RTB", why: "Balanced/Choppy table grind." }
       ];
+
+      strategies.slice(0, 5).forEach((p, idx) => {
+        const div = document.createElement("div");
+        div.className = "playcard";
+        div.innerHTML = `<div class="playhdr"><div><div style="font-weight:900">${idx+1}. ${p.name}</div><div class="small">${p.why}</div></div><button class="play-btn-small" onclick="lockStrategy('${p.name}', '${state}')">PLAY</button></div>`;
+        list.appendChild(div);
+      });
+    }
+
+    window.lockStrategy = (name, state) => { lockedPlayName = name; frozenTableState = state; render(); };
+    $("endStrategyBtn").onclick = () => { lockedPlayName = null; frozenTableState = null; render(); };
+
+    function checkTableDrift() {
+      if (!lockedPlayName || spins.length < 6) return;
+      const last5 = spins.slice(0, 5).map(s => s.n);
+      const unique = new Set(last5);
+      const warnBox = $("driftWarning");
+      if (unique.size <= 3) {
+        warnBox.style.display = "block"; warnBox.classList.add("drift-alert-active");
+      } else { warnBox.style.display = "none"; }
     }
 
     // Build Keypad
     const kbd = $("kbd");
-    const keys = ["00", 0, ...Array.from({length: 36}, (_, i) => i + 1)];
-    keys.forEach(k => {
+    ["00", 0, ...Array.from({length: 36}, (_, i) => i + 1)].forEach(k => {
       const b = document.createElement("button");
       b.className = "key" + (k === 0 || k === "00" ? " green" : "");
       b.textContent = k;
       b.onclick = () => addSpin(k);
       kbd.appendChild(b);
     });
-
-    render();
   </script>
 </body>
 </html>
